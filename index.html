@@ -357,7 +357,31 @@ function findRow(rows, colIdx, label){
   return rows.find(r => (r[colIdx]||'').trim().toLowerCase() === label.toLowerCase());
 }
 function num(v){
-  const n = parseFloat((v||'').replace(/[^0-9.\-]/g,''));
+  if(v == null) return null;
+  v = String(v).trim();
+  if(v === '') return null;
+  v = v.replace(/[^0-9.,\-]/g, '');
+  if(v === '') return null;
+  const hasComma = v.indexOf(',') !== -1;
+  const hasDot = v.indexOf('.') !== -1;
+  if(hasComma && hasDot){
+    // formato es-AR: punto = miles, coma = decimal -> "111.985,28"
+    v = v.replace(/\./g, '').replace(',', '.');
+  } else if(hasComma && !hasDot){
+    // solo coma: es el decimal -> "23,04"
+    v = v.replace(',', '.');
+  } else if(hasDot && !hasComma){
+    const parts = v.split('.');
+    if(parts.length > 2){
+      // varios puntos: todos son separadores de miles -> "1.234.567"
+      v = parts.join('');
+    } else if(parts[1] && parts[1].length === 3){
+      // un solo punto con 3 dígitos después: separador de miles -> "70.000"
+      v = parts.join('');
+    }
+    // si tiene 1-2 decimales, se deja como está (es un decimal real, ej "260.08")
+  }
+  const n = parseFloat(v);
   return isNaN(n) ? null : n;
 }
 
