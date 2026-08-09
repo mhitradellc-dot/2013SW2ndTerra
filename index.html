@@ -144,12 +144,12 @@
   <div class="sec"><span class="num">01</span><h2 class="title">Resumen económico</h2><div class="rule"></div></div>
   <p class="sec-intro">Proyección al modelo Catalina, sobre 2.662 sqft totales (≈247 m² bajo techo).</p>
   <div class="stat-row">
-    <div class="stat"><div class="stat-label">Precio est. de venta</div><div class="stat-value">$598,080</div><div class="stat-sub">US$320 / sqft</div></div>
-    <div class="stat"><div class="stat-label">Costo total invertido</div><div class="stat-value">$486,095</div><div class="stat-sub">US$260 / sqft</div></div>
-    <div class="stat"><div class="stat-label">Margen bruto estimado</div><div class="stat-value gold">$111,985</div><div class="stat-sub">18.7% sobre venta</div></div>
-    <div class="stat"><div class="stat-label">ROI sobre inversión</div><div class="stat-value teal">23.0%</div><div class="stat-sub">Ganancia / costo invertido</div></div>
-    <div class="stat"><div class="stat-label">Precio mínimo (break-even)</div><div class="stat-value">$509,000</div><div class="stat-sub">US$272 / sqft</div></div>
-    <div class="stat"><div class="stat-label">Upside vs. break-even</div><div class="stat-value">$89,080</div><div class="stat-sub">est. sobre precio de venta</div></div>
+    <div class="stat"><div class="stat-label">Precio est. de venta</div><div class="stat-value" id="kpiVenta">$598,080</div><div class="stat-sub" id="kpiVentaSqft">US$320 / sqft</div></div>
+    <div class="stat"><div class="stat-label">Costo total invertido</div><div class="stat-value" id="kpiCosto">$486,095</div><div class="stat-sub" id="kpiCostoSqft">US$260 / sqft</div></div>
+    <div class="stat"><div class="stat-label">Margen bruto estimado</div><div class="stat-value gold" id="kpiMargen">$111,985</div><div class="stat-sub" id="kpiMargenPct">18.7% sobre venta</div></div>
+    <div class="stat"><div class="stat-label">ROI sobre inversión</div><div class="stat-value teal" id="kpiRoi">23.0%</div><div class="stat-sub">Ganancia / costo invertido</div></div>
+    <div class="stat"><div class="stat-label">Precio mínimo (break-even)</div><div class="stat-value" id="kpiBreakeven">$509,000</div><div class="stat-sub" id="kpiBreakevenSqft">US$272 / sqft</div></div>
+    <div class="stat"><div class="stat-label">Upside vs. break-even</div><div class="stat-value" id="kpiUpside">$89,080</div><div class="stat-sub">est. sobre precio de venta</div></div>
   </div>
 
   <h3 style="font-size:13px; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-soft); margin:26px 0 14px;">Composición del presupuesto de obra</h3>
@@ -157,20 +157,20 @@
     <div style="display:flex; align-items:center; justify-content:center;">
       <svg viewBox="0 0 200 200" width="200" height="200">
         <circle cx="100" cy="100" r="70" fill="none" stroke="var(--panel-raised)" stroke-width="26"></circle>
-        <circle cx="100" cy="100" r="70" fill="none" stroke="var(--gold)" stroke-width="26"
+        <circle id="donutLote" cx="100" cy="100" r="70" fill="none" stroke="var(--gold)" stroke-width="26"
           stroke-dasharray="70.37 369.44" stroke-dashoffset="0" transform="rotate(-90 100 100)"></circle>
-        <circle cx="100" cy="100" r="70" fill="none" stroke="var(--teal)" stroke-width="26"
+        <circle id="donutSoft" cx="100" cy="100" r="70" fill="none" stroke="var(--teal)" stroke-width="26"
           stroke-dasharray="63.68 376.13" stroke-dashoffset="-70.37" transform="rotate(-90 100 100)"></circle>
-        <circle cx="100" cy="100" r="70" fill="none" stroke="var(--slate)" stroke-width="26"
+        <circle id="donutHard" cx="100" cy="100" r="70" fill="none" stroke="var(--slate)" stroke-width="26"
           stroke-dasharray="305.76 133.95" stroke-dashoffset="-134.05" transform="rotate(-90 100 100)"></circle>
-        <text x="100" y="96" text-anchor="middle" fill="var(--ink)" font-family="'Fraunces', serif" font-size="16" font-weight="600">$437,633</text>
+        <text id="donutTotal" x="100" y="96" text-anchor="middle" fill="var(--ink)" font-family="'Fraunces', serif" font-size="16" font-weight="600">$437,633</text>
         <text x="100" y="114" text-anchor="middle" fill="var(--ink-faint)" font-family="'IBM Plex Mono', monospace" font-size="9.5">BUDGET TOTAL</text>
       </svg>
     </div>
     <table class="plain">
-      <tr><td><span style="display:inline-block;width:9px;height:9px;background:var(--gold);border-radius:1px;margin-right:8px;"></span>Lote</td><td>$70,000 · 16.0%</td></tr>
-      <tr><td><span style="display:inline-block;width:9px;height:9px;background:var(--teal);border-radius:1px;margin-right:8px;"></span>Soft costs (sin lote)</td><td>$63,289 · 14.5%</td></tr>
-      <tr><td><span style="display:inline-block;width:9px;height:9px;background:var(--slate);border-radius:1px;margin-right:8px;"></span>Hard costs</td><td>$304,344 · 69.5%</td></tr>
+      <tr><td><span style="display:inline-block;width:9px;height:9px;background:var(--gold);border-radius:1px;margin-right:8px;"></span>Lote</td><td id="legLote">$70,000 · 16.0%</td></tr>
+      <tr><td><span style="display:inline-block;width:9px;height:9px;background:var(--teal);border-radius:1px;margin-right:8px;"></span>Soft costs (sin lote)</td><td id="legSoft">$63,289 · 14.5%</td></tr>
+      <tr><td><span style="display:inline-block;width:9px;height:9px;background:var(--slate);border-radius:1px;margin-right:8px;"></span>Hard costs</td><td id="legHard">$304,344 · 69.5%</td></tr>
     </table>
   </div>
 
@@ -217,8 +217,8 @@
   <div id="softBars"></div>
   <h3 style="font-size:13px; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-soft); margin:22px 0 12px;">Hard costs</h3>
   <div id="hardBars"></div>
-  <div class="subtotal-row"><span>Total invertido a la fecha</span><span>Budget $437,633 · Real $70,000</span></div>
-  <div class="variance-note" style="color:var(--ink-faint)">Avance de desembolso: 16.0% del budget total de obra</div>
+  <div class="subtotal-row"><span>Total invertido a la fecha</span><span id="subtotalBvR">Budget $437,633 · Real $70,000</span></div>
+  <div class="variance-note" id="varianceNote" style="color:var(--ink-faint)">Avance de desembolso: 16.0% del budget total de obra</div>
 
   <div class="sec"><span class="num">07</span><h2 class="title">Fotos de obra</h2><div class="rule"></div></div>
   <p class="sec-intro">Registro fotográfico del avance — 15/07/2026.</p>
@@ -320,6 +320,166 @@ function renderBars(containerId, data){
 }
 renderBars('softBars', softData);
 renderBars('hardBars', hardData);
+
+// ===== Conexión en vivo con Google Sheets (MODELO y BUDGET VS REAL) =====
+const MODELO_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTKVJlDTZ8msKbJ4JB5gZ-c56PEC6z8QUR1iaxwLd-r_4AtTSnX9TsUVwlDlA8szbXS-pAT1f6AYuDl/pub?gid=617828091&single=true&output=csv";
+const BUDGET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTKVJlDTZ8msKbJ4JB5gZ-c56PEC6z8QUR1iaxwLd-r_4AtTSnX9TsUVwlDlA8szbXS-pAT1f6AYuDl/pub?gid=280538346&single=true&output=csv";
+
+function parseCSV(text){
+  const rows = [];
+  let row = [], field = '', inQuotes = false;
+  for(let i=0; i<text.length; i++){
+    const c = text[i];
+    if(inQuotes){
+      if(c === '"'){
+        if(text[i+1] === '"'){ field += '"'; i++; } else inQuotes = false;
+      } else field += c;
+    } else {
+      if(c === '"') inQuotes = true;
+      else if(c === ','){ row.push(field); field = ''; }
+      else if(c === '\n' || c === '\r'){
+        if(c === '\r' && text[i+1] === '\n') i++;
+        row.push(field); field = ''; rows.push(row); row = [];
+      } else field += c;
+    }
+  }
+  if(field.length || row.length){ row.push(field); rows.push(row); }
+  return rows;
+}
+
+async function fetchCSV(url){
+  const res = await fetch(url, {cache:'no-store'});
+  if(!res.ok) throw new Error('fetch failed: ' + res.status);
+  return parseCSV(await res.text());
+}
+
+function findRow(rows, colIdx, label){
+  return rows.find(r => (r[colIdx]||'').trim().toLowerCase() === label.toLowerCase());
+}
+function num(v){
+  const n = parseFloat((v||'').replace(/[^0-9.\-]/g,''));
+  return isNaN(n) ? null : n;
+}
+
+async function loadLiveData(){
+  try{
+    const [modeloRows, budgetRows] = await Promise.all([fetchCSV(MODELO_URL), fetchCSV(BUDGET_URL)]);
+
+    // ---- KPIs desde hoja MODELO ----
+    const venta = findRow(modeloRows, 0, 'Precio Estimado de Venta');
+    const costoTotal = findRow(modeloRows, 0, 'COSTO TOTAL');
+    const margen = findRow(modeloRows, 0, 'MARGEN BRUTO');
+    const roiRow = findRow(modeloRows, 0, 'ROI sobre inversión (est.)');
+    const breakeven = findRow(modeloRows, 0, 'Precio mínimo de venta (break-even)');
+    const upside = findRow(modeloRows, 0, 'Upside vs break-even (est.)');
+
+    if(venta && costoTotal && margen && roiRow && breakeven && upside){
+      const ventaMonto = num(venta[2]);
+      const ventaSqft = num(venta[3]);
+      const costoMonto = Math.abs(num(costoTotal[2]));
+      const costoSqft = Math.abs(num(costoTotal[3]));
+      const margenMonto = num(margen[2]);
+      const margenPct = num(margen[3]) * 100;
+      const roiPct = num(roiRow[2]) * 100;
+      const breakevenMonto = num(breakeven[2]);
+      const breakevenSqft = num(breakeven[3]);
+      const upsideMonto = num(upside[2]);
+
+      document.getElementById('kpiVenta').textContent = fmt(ventaMonto);
+      document.getElementById('kpiVentaSqft').textContent = 'US$' + Math.round(ventaSqft) + ' / sqft';
+      document.getElementById('kpiCosto').textContent = fmt(costoMonto);
+      document.getElementById('kpiCostoSqft').textContent = 'US$' + Math.round(costoSqft) + ' / sqft';
+      document.getElementById('kpiMargen').textContent = fmt(margenMonto);
+      document.getElementById('kpiMargenPct').textContent = margenPct.toFixed(1) + '% sobre venta';
+      document.getElementById('kpiRoi').textContent = roiPct.toFixed(1) + '%';
+      document.getElementById('kpiBreakeven').textContent = fmt(breakevenMonto);
+      document.getElementById('kpiBreakevenSqft').textContent = 'US$' + Math.round(breakevenSqft) + ' / sqft';
+      document.getElementById('kpiUpside').textContent = fmt(upsideMonto);
+    }
+
+    // ---- Budget vs Real desde hoja BUDGET VS REAL ----
+    const softMap = [
+      {match:'Lote', label:'Lote'},
+      {match:'Contratista', label:'Contratista'},
+      {match:'Gestoria-Habilitacion-inspecciones-planos', label:'Gestoría / habilitación / planos'},
+      {match:'Impuestos', label:'Impuestos'},
+    ];
+    const hardMap = [
+      {match:'Trozas', label:'Trozas'},
+      {match:'Ventanas', label:'Ventanas'},
+      {match:'Sea Wall', label:'Sea Wall'},
+      {match:'Piscinas', label:'Piscinas'},
+      {match:'Materiales de construccion y mano de obra', label:'Materiales y mano de obra'},
+      {match:'Movimientos de suelo-tierra-compactacion', label:'Movimientos de suelo'},
+      {match:'Electricidad', label:'Electricidad'},
+      {match:'Muebles y utiles', label:'Muebles y útiles'},
+      {match:'Instalaciones', label:'Instalaciones'},
+      {match:'Gastos bancarios', label:'Gastos bancarios'},
+      {match:'Servicios', label:'Servicios'},
+    ];
+
+    function extractItems(map){
+      const out = [];
+      for(const m of map){
+        const row = findRow(budgetRows, 1, m.match);
+        if(!row) continue;
+        const budget = num(row[2]) || 0;
+        if(budget <= 0) continue;
+        const real = num(row[3]);
+        out.push({label: m.label, budget, real: (real===null || real<=0) ? null : real});
+      }
+      return out;
+    }
+
+    const newSoft = extractItems(softMap);
+    const newHard = extractItems(hardMap);
+
+    if(newSoft.length && newHard.length){
+      renderBars('softBars', newSoft);
+      renderBars('hardBars', newHard);
+
+      const loteItem = newSoft.find(x => x.label === 'Lote');
+      const loteBudget = loteItem ? loteItem.budget : 0;
+      const softBudgetTotal = newSoft.reduce((s,x)=>s+x.budget, 0);
+      const softRealTotal = newSoft.reduce((s,x)=>s+(x.real||0), 0);
+      const hardBudgetTotal = newHard.reduce((s,x)=>s+x.budget, 0);
+      const hardRealTotal = newHard.reduce((s,x)=>s+(x.real||0), 0);
+      const softExLoteBudget = softBudgetTotal - loteBudget;
+
+      const totalBudget = softBudgetTotal + hardBudgetTotal;
+      const totalReal = softRealTotal + hardRealTotal;
+
+      const circumference = 2 * Math.PI * 70;
+      const lotePct = loteBudget / totalBudget;
+      const softPct = softExLoteBudget / totalBudget;
+      const hardPct = hardBudgetTotal / totalBudget;
+      const loteLen = circumference * lotePct;
+      const softLen = circumference * softPct;
+      const hardLen = circumference * hardPct;
+
+      document.getElementById('donutLote').setAttribute('stroke-dasharray', loteLen.toFixed(2)+' '+(circumference-loteLen).toFixed(2));
+      document.getElementById('donutSoft').setAttribute('stroke-dasharray', softLen.toFixed(2)+' '+(circumference-softLen).toFixed(2));
+      document.getElementById('donutSoft').setAttribute('stroke-dashoffset', (-loteLen).toFixed(2));
+      document.getElementById('donutHard').setAttribute('stroke-dasharray', hardLen.toFixed(2)+' '+(circumference-hardLen).toFixed(2));
+      document.getElementById('donutHard').setAttribute('stroke-dashoffset', (-(loteLen+softLen)).toFixed(2));
+      document.getElementById('donutTotal').textContent = fmt(totalBudget);
+
+      document.getElementById('legLote').textContent = fmt(loteBudget) + ' · ' + (lotePct*100).toFixed(1) + '%';
+      document.getElementById('legSoft').textContent = fmt(softExLoteBudget) + ' · ' + (softPct*100).toFixed(1) + '%';
+      document.getElementById('legHard').textContent = fmt(hardBudgetTotal) + ' · ' + (hardPct*100).toFixed(1) + '%';
+
+      document.getElementById('subtotalBvR').textContent = 'Budget ' + fmt(totalBudget) + ' · Real ' + fmt(totalReal);
+      const avancePct = totalReal / totalBudget * 100;
+      document.getElementById('varianceNote').textContent = 'Avance de desembolso: ' + avancePct.toFixed(1) + '% del budget total de obra';
+    }
+
+    const now = new Date();
+    document.getElementById('lastUpdated').textContent = now.toLocaleDateString('es-AR') + ' ' + now.toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'}) + ' (en vivo)';
+  }catch(e){
+    console.error('No se pudieron cargar los datos en vivo, se muestran los últimos valores guardados.', e);
+  }
+}
+loadLiveData();
 
 async function loadRevisions(){
   const body = document.getElementById('revBody');
