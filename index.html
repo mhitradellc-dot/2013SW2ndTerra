@@ -113,7 +113,9 @@ body.editor .viewer-only { display:none !important; }
 .modal-box label { display:block; font-size:11px; color:var(--ink-soft); text-transform:uppercase; margin:12px 0 4px; }
 .modal-box input[type=password], .modal-box input[type=text] { width:100%; padding:9px 10px; border:1px solid var(--line); border-radius:6px; font-size:14px; font-family:inherit; background:var(--panel); color:var(--ink); }
 .modal-box details { margin-top:10px; font-size:12px; color:var(--ink-soft); }
-#login-error { color:var(--red); font-size:12.5px; min-height:18px; margin-top:8px; white-space:pre-line; }
+.pin-input { width:100%; margin-top:14px; padding:12px; font-size:26px; letter-spacing:.45em; text-align:center; border:1px solid var(--line); border-radius:8px; background:var(--panel); color:var(--ink); font-family:ui-monospace,Menlo,monospace; }
+.linkbtn { background:none; border:0; padding:0; color:var(--navy); text-decoration:underline; cursor:pointer; font:inherit; font-size:12.5px; }
+.login-error { color:var(--red); font-size:12.5px; min-height:18px; margin-top:8px; white-space:pre-line; }
 .toast { position:fixed; left:50%; bottom:20px; transform:translateX(-50%) translateY(30px); background:var(--navy-dark); color:#fff; padding:11px 16px; border-radius:8px; font-size:13px; opacity:0; pointer-events:none; transition:all .25s; z-index:120; max-width:calc(100% - 32px); box-shadow:0 4px 16px rgba(0,0,0,0.25); }
 .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
 .toast.err { background:var(--red); }
@@ -266,9 +268,11 @@ function renderAll() {
     case 'cashflow': el.innerHTML = renderCashFlow(); break;
     case 'gastos': el.innerHTML = renderGastos(); break;
     case 'budget': el.innerHTML = renderBudget(); break;
+    case 'usuarios': el.innerHTML = isEditor() ? renderUsuarios() : ''; break;
   }
   main.appendChild(el);
   attachHandlers();
+  attachUsuariosHandlers();
 }
 </script>
 <script>
@@ -472,7 +476,7 @@ function renderMovimientos() {
   <div class="card">
     <h2>Movimientos</h2>
     <p class="sub">Cargá acá cada movimiento. Se asigna solo a Mercury / Facebank / Escrow / Otras, al Cash Flow y al Budget vs Real.</p>
-    <p class="sub viewer-only">Modo consulta. Para cargar o editar movimientos tocá <b>🔒 Ingresar para editar</b> (arriba a la derecha) e ingresá la clave.</p>
+    <p class="sub viewer-only">Modo consulta. Para cargar o editar movimientos tocá <b>🔒 Ingresar para editar</b> (arriba a la derecha) y escribí tu número de acceso.</p>
     <div class="kpi-grid" style="margin-bottom:16px;">
       <div class="kpi"><div class="lbl">Total ingresos (DEBE)</div><div class="val pos">${fmt(totalDebe)}</div><div class="subv">sin transferencias entre cuentas</div></div>
       <div class="kpi"><div class="lbl">Total egresos (HABER)</div><div class="val neg">${fmt(totalHaber)}</div><div class="subv">sin transferencias entre cuentas</div></div>
@@ -905,24 +909,41 @@ function renderBudget() {
 </script>
 
 <div class="modal" id="login-modal" role="dialog" aria-modal="true">
-  <form class="modal-box" id="login-form" autocomplete="off">
-    <h2 style="margin:0 0 4px;">🔒 Ingresar para editar</h2>
-    <p class="sub" style="margin:0;">Pegá la clave de acceso. Sin la clave, la página es solo de consulta.</p>
-    <label for="login-token">Clave de acceso</label>
-    <input type="password" id="login-token" placeholder="github_pat_..." required>
-    <label style="display:flex; gap:8px; align-items:center; text-transform:none; font-size:13px; color:var(--ink);">
-      <input type="checkbox" id="login-remember" checked> Recordar en este dispositivo
-    </label>
-    <details><summary>Avanzado</summary>
-      <label for="login-repo">Repositorio</label>
-      <input type="text" id="login-repo">
-    </details>
-    <div id="login-error"></div>
-    <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:12px;">
-      <button type="button" class="btn" id="login-cancel" style="background:var(--ink-faint);">Cancelar</button>
-      <button type="submit" class="btn">Ingresar</button>
-    </div>
-  </form>
+  <div class="modal-box">
+    <form id="form-pin" autocomplete="off"><div id="step-pin">
+      <h2 style="margin:0 0 4px;">🔒 Ingresar para editar</h2>
+      <p class="sub" style="margin:0;">Escribí tu número de acceso.</p>
+      <input type="password" id="login-pin" class="pin-input" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="••••••" required>
+      <label style="display:flex; gap:8px; align-items:center; text-transform:none; font-size:13px; color:var(--ink);">
+        <input type="checkbox" id="login-remember"> Recordar en este dispositivo
+      </label>
+      <div class="login-error" id="pin-error"></div>
+      <div style="display:flex; gap:8px; justify-content:space-between; align-items:center; margin-top:12px; flex-wrap:wrap;">
+        <button type="button" class="linkbtn" id="go-setup">Configurar acceso (primera vez)</button>
+        <div style="display:flex; gap:8px;">
+          <button type="button" class="btn" data-close-login style="background:var(--ink-faint);">Cancelar</button>
+          <button type="submit" class="btn">Ingresar</button>
+        </div>
+      </div>
+    </div></form>
+    <form id="form-setup" autocomplete="off"><div id="step-setup" style="display:none;">
+      <h2 style="margin:0 0 4px;">Configurar acceso (primera vez)</h2>
+      <p class="sub" style="margin:0;">Se hace una sola vez. Pegás el token de GitHub y elegís tu número; después entrás solo con el número.</p>
+      <label>Token de GitHub</label><input type="password" name="token" id="setup-token" placeholder="github_pat_..." required>
+      <label>Tu nombre</label><input type="text" name="nombre" required placeholder="ej: Nacho">
+      <label>Número de acceso (6 a 8 dígitos)</label><input type="password" name="pin" inputmode="numeric" pattern="[0-9]{6,8}" required>
+      <label>Repetir número</label><input type="password" name="pin2" inputmode="numeric" pattern="[0-9]{6,8}" required>
+      <details><summary>Avanzado</summary><label>Repositorio</label><input type="text" name="repo" id="setup-repo"></details>
+      <div class="login-error" id="setup-error"></div>
+      <div style="display:flex; gap:8px; justify-content:space-between; align-items:center; margin-top:12px;">
+        <button type="button" class="linkbtn" id="go-pin">← Volver</button>
+        <div style="display:flex; gap:8px;">
+          <button type="button" class="btn" data-close-login style="background:var(--ink-faint);">Cancelar</button>
+          <button type="submit" class="btn">Guardar y entrar</button>
+        </div>
+      </div>
+    </div></form>
+  </div>
 </div>
 <div class="toast" id="toast"></div>
 <script>
@@ -931,10 +952,11 @@ function renderAuth() {
   const box = document.getElementById('auth-box');
   if (!box) return;
   box.innerHTML = isEditor()
-    ? `<button class="auth-btn on" id="btn-logout" title="Salir del modo edición">🔓 Editando · Salir</button>`
-    : `<button class="auth-btn" id="btn-login" title="Ingresar con la clave para cargar o editar">🔒 Ingresar para editar</button>`;
+    ? `<button class="auth-btn" id="btn-usuarios" title="Usuarios con acceso">👥 Usuarios</button> <button class="auth-btn on" id="btn-logout" title="Salir del modo edición">🔓 ${esc(gh.nombre || '')} · Salir</button>`
+    : `<button class="auth-btn" id="btn-login" title="Ingresar con tu número para cargar o editar">🔒 Ingresar para editar</button>`;
   const bi = document.getElementById('btn-login'); if (bi) bi.onclick = openLogin;
-  const bo = document.getElementById('btn-logout'); if (bo) bo.onclick = () => { if (confirm('¿Salir del modo edición en este dispositivo?')) logout(); };
+  const bu = document.getElementById('btn-usuarios'); if (bu) bu.onclick = () => { currentTab = 'usuarios'; renderAll(); window.scrollTo({top:0}); };
+  const bo = document.getElementById('btn-logout'); if (bo) bo.onclick = () => { if (confirm('¿Salir del modo edición?')) logout(); };
 }
 
 function attachHandlers() {
@@ -1095,20 +1117,55 @@ function attachHandlers() {
 
 </script>
 <script>
+// ===================== ACCESO CON NÚMERO (PIN) =====================
+// Cómo funciona: la clave real de GitHub (token) se guarda CIFRADA en el archivo acceso.json,
+// una copia por cada usuario, cerrada con su número de acceso. Al tipear el número correcto,
+// la página abre esa copia y obtiene el token para poder guardar. Con un número incorrecto no se abre nada.
+const PBKDF2_ITER = 400000;
+const b64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf)));
+const unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+async function deriveKey(pin, salt) {
+  const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(pin), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: PBKDF2_ITER, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+}
+async function encryptSecret(obj, pin) {
+  const salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await deriveKey(pin, salt);
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(JSON.stringify(obj)));
+  return { salt: b64(salt), iv: b64(iv), ct: b64(ct) };
+}
+async function decryptSecret(entry, pin) {
+  try {
+    const key = await deriveKey(pin, unb64(entry.salt));
+    const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(entry.iv) }, key, unb64(entry.ct));
+    return JSON.parse(new TextDecoder().decode(pt));
+  } catch (_) { return null; }
+}
+let acceso = { usuarios: [] };   // contenido de acceso.json
+async function loadAcceso() {
+  try { const r = await fetch('acceso.json?t=' + Date.now(), { cache: 'no-store' }); if (r.ok) acceso = await r.json(); } catch (_) {}
+  if (!Array.isArray(acceso.usuarios)) acceso.usuarios = [];
+}
+async function saveAcceso(message) {
+  let sha = null;
+  try { const f = await ghApi(repoPath('acceso.json') + '?ref=' + encodeURIComponent(gh.branch) + '&t=' + Date.now()); sha = f.sha; } catch (e) { if (e.status !== 404) throw e; }
+  await ghPutFile('acceso.json', b64encodeUtf8(JSON.stringify(acceso, null, 1)), message, sha);
+}
+
 // ===================== ALMACENAMIENTO EN GITHUB =====================
-// Los datos viven en data.json (y las fotos en /fotos) dentro del mismo repositorio de GitHub.
-// Cualquiera con el link VE la información. Para EDITAR hace falta la "clave de acceso"
-// (un token de GitHub con permiso de escritura sobre este repositorio). Sin la clave no se puede guardar nada.
-const GH_CONFIG = { repo: '2nd-terrace-caja', dataPath: 'data.json', fotosDir: 'fotos' };
-const LS_KEY = 'caja2t_gh';
-let gh = null;            // {token, owner, repo, branch}
-let fotoPreview = {};     // fotos recién subidas (se ven antes de que Netlify publique)
+// Los datos viven en data.json (y las fotos en /fotos) dentro del repositorio de GitHub.
+// Cualquiera con el link VE la información. Para EDITAR hace falta el número de acceso.
+const GH_CONFIG = { repo: '2nd-terrace-informe', dataPath: 'data.json', fotosDir: 'fotos' };
+const LS_KEY = 'caja2t_sesion';
+let gh = null;            // {token, owner, repo, branch, nombre}
+let fotoPreview = {};
 let lastUpdate = null;
+let pinFallos = 0, pinBloqueoHasta = 0;
 
 function isEditor() { return !!gh; }
 function newId(p) { return p + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,7); }
 function b64encodeUtf8(str) { const bytes = new TextEncoder().encode(str); let bin=''; bytes.forEach(b=>bin+=String.fromCharCode(b)); return btoa(bin); }
-function b64decodeUtf8(b64) { const bin = atob(b64.replace(/\s/g,'')); const bytes = Uint8Array.from(bin, c=>c.charCodeAt(0)); return new TextDecoder().decode(bytes); }
+function b64decodeUtf8(s) { const bin = atob(s.replace(/\s/g,'')); return new TextDecoder().decode(Uint8Array.from(bin, c=>c.charCodeAt(0))); }
 
 async function ghApi(path, opts = {}, auth = gh) {
   const headers = { 'Accept': 'application/vnd.github+json', 'Authorization': 'Bearer ' + auth.token };
@@ -1118,7 +1175,6 @@ async function ghApi(path, opts = {}, auth = gh) {
   return r.status === 204 ? null : r.json();
 }
 function repoPath(p) { return `/repos/${gh.owner}/${gh.repo}/contents/${p}`; }
-
 async function ghGetData() {
   try {
     const f = await ghApi(repoPath(GH_CONFIG.dataPath) + '?ref=' + encodeURIComponent(gh.branch) + '&t=' + Date.now());
@@ -1126,104 +1182,188 @@ async function ghGetData() {
     if (f.content) text = b64decodeUtf8(f.content);
     else { const blob = await ghApi(`/repos/${gh.owner}/${gh.repo}/git/blobs/${f.sha}`); text = b64decodeUtf8(blob.content); }
     return { data: normalizeData(JSON.parse(text)), sha: f.sha };
-  } catch (e) {
-    if (e.status === 404) return { data: normalizeData({}), sha: null };
-    throw e;
-  }
+  } catch (e) { if (e.status === 404) return { data: normalizeData({}), sha: null }; throw e; }
 }
 async function ghPutFile(path, b64content, message, sha) {
   const body = { message, content: b64content, branch: gh.branch };
   if (sha) body.sha = sha;
   return ghApi(repoPath(path), { method: 'PUT', body: JSON.stringify(body) });
 }
-function normalizeData(d) {
-  return { movimientos: Array.isArray(d.movimientos) ? d.movimientos : [], fotos: Array.isArray(d.fotos) ? d.fotos : [], actualizado: d.actualizado || null };
-}
+function normalizeData(d) { return { movimientos: Array.isArray(d.movimientos) ? d.movimientos : [], fotos: Array.isArray(d.fotos) ? d.fotos : [], actualizado: d.actualizado || null }; }
 function applyData(d) {
   movimientos = d.movimientos.map(m => ({ ...m }));
   fotos = d.fotos.map(f => ({ ...f, url: fotoPreview[f.id] || f.path }));
   lastUpdate = d.actualizado;
   renderAll();
 }
-
-// Aplica un cambio sobre la versión más nueva de data.json y lo guarda en GitHub.
-// Si otra persona guardó al mismo tiempo, vuelve a leer y reintenta (no se pisan los cambios).
 async function mutate(fn, message) {
-  if (!isEditor()) { openLogin(); throw Object.assign(new Error('sin clave'), { code: 'nologin' }); }
+  if (!isEditor()) { openLogin(); throw Object.assign(new Error('sin acceso'), { code: 'nologin' }); }
   for (let intento = 0; intento < 4; intento++) {
     const { data, sha } = await ghGetData();
     fn(data);
     data.actualizado = new Date().toISOString();
     try {
-      await ghPutFile(GH_CONFIG.dataPath, b64encodeUtf8(JSON.stringify(data, null, 1)), message, sha);
+      await ghPutFile(GH_CONFIG.dataPath, b64encodeUtf8(JSON.stringify(data, null, 1)), message + ' (' + gh.nombre + ')', sha);
       applyData(data);
       showToast('Guardado ✓ — los demás lo verán en ~1 minuto, cuando Netlify publique.');
       return;
-    } catch (e) {
-      if (e.status === 409 || e.status === 422) continue;
-      throw e;
-    }
+    } catch (e) { if (e.status === 409 || e.status === 422) continue; throw e; }
   }
   throw new Error('No se pudo guardar por conflicto de versiones.');
 }
 function errMsg(err, base) {
   if (err && err.code === 'nologin') return null;
-  if (err && (err.status === 401 || err.status === 403)) return base + '\nLa clave de acceso no es válida, venció o no tiene permiso de escritura.';
+  if (err && (err.status === 401 || err.status === 403)) return base + '\nEl acceso dejó de ser válido (el token de GitHub venció o fue borrado). Hay que volver a configurarlo.';
   return base + ' Probá de nuevo.';
 }
-
-// ---------- Carga inicial ----------
 async function loadPublicData() {
   try {
     const r = await fetch('data.json?t=' + Date.now(), { cache: 'no-store' });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     applyData(normalizeData(await r.json()));
-  } catch (e) {
-    console.warn('No se pudo leer data.json', e);
-    showToast('No se pudo leer data.json. Verificá que esté subido junto a index.html.', true);
-  }
+  } catch (e) { console.warn(e); showToast('No se pudo leer data.json. Verificá que esté subido junto a index.html.', true); }
 }
 async function loadEditorData() {
   try { const { data } = await ghGetData(); applyData(data); }
-  catch (e) { console.error(e); if (e.status === 401) { logout(); showToast('La clave guardada ya no es válida. Ingresá de nuevo.', true); } }
+  catch (e) { console.error(e); if (e.status === 401) { logout(); showToast('El acceso ya no es válido. Hay que configurarlo de nuevo.', true); } }
 }
 
-// ---------- Login / logout ----------
-async function login(token, repo, remember) {
-  token = token.trim(); repo = (repo || GH_CONFIG.repo).trim();
-  const auth = { token };
-  const user = await ghApi('/user', {}, auth);
-  let owner = user.login, repoName = repo;
-  if (repo.includes('/')) [owner, repoName] = repo.split('/');
-  const info = await ghApi(`/repos/${owner}/${repoName}`, {}, auth);
-  if (info.permissions && !info.permissions.push) throw Object.assign(new Error('sin permiso'), { status: 403 });
-  gh = { token, owner, repo: repoName, branch: info.default_branch };
-  try { if (remember) localStorage.setItem(LS_KEY, JSON.stringify(gh)); else localStorage.removeItem(LS_KEY); } catch(_) {}
+// ---------- Sesión ----------
+async function startSession(secret, nombre, remember) {
+  gh = { ...secret, nombre };
+  try {
+    sessionStorage.setItem(LS_KEY, JSON.stringify(gh));
+    if (remember) localStorage.setItem(LS_KEY, JSON.stringify(gh)); else localStorage.removeItem(LS_KEY);
+  } catch(_) {}
   document.body.classList.add('editor');
   await loadEditorData();
 }
 function logout() {
   gh = null;
-  try { localStorage.removeItem(LS_KEY); } catch(_) {}
+  try { localStorage.removeItem(LS_KEY); sessionStorage.removeItem(LS_KEY); } catch(_) {}
   document.body.classList.remove('editor');
   editingMovId = null;
+  if (currentTab === 'usuarios') currentTab = 'resumen';
   renderAll();
 }
+
+async function loginConPin(pin, remember) {
+  if (Date.now() < pinBloqueoHasta) throw new Error(`Demasiados intentos. Esperá ${Math.ceil((pinBloqueoHasta-Date.now())/1000)} segundos.`);
+  if (!acceso.usuarios.length) await loadAcceso();
+  if (!acceso.usuarios.length) throw new Error('Todavía no hay usuarios configurados. Tocá "Configurar acceso (primera vez)".');
+  for (const u of acceso.usuarios) {
+    const secret = await decryptSecret(u, pin);
+    if (secret) { pinFallos = 0; await startSession(secret, u.nombre, remember); return u.nombre; }
+  }
+  pinFallos++;
+  if (pinFallos >= 5) { pinBloqueoHasta = Date.now() + 60000; pinFallos = 0; }
+  throw new Error('Número de acceso incorrecto.');
+}
+
+// Primera vez: con el token de GitHub se crea el primer usuario y se guarda acceso.json en el repo.
+// Busca el repositorio: primero por el nombre indicado; si no está, revisa a qué repositorios
+// tiene acceso el token y, si hay uno solo (o uno con nombre parecido), usa ese.
+async function resolverRepo(auth, repo) {
+  const user = await ghApi('/user', {}, auth);
+  let owner = user.login, repoName = repo;
+  if (repo.includes('/')) [owner, repoName] = repo.split('/');
+  try { return await ghApi(`/repos/${owner}/${repoName}`, {}, auth); }
+  catch (e) { if (e.status !== 404) throw e; }
+  let lista = [];
+  try { lista = await ghApi('/user/repos?per_page=100&sort=updated', {}, auth); } catch (_) {}
+  const conPermiso = lista.filter(r => !r.permissions || r.permissions.push);
+  const exacto = conPermiso.find(r => r.name.toLowerCase() === repoName.toLowerCase());
+  if (exacto) return exacto;
+  if (conPermiso.length === 1) return conPermiso[0];
+  const err = new Error('repo no encontrado'); err.status = 404;
+  err.disponibles = conPermiso.map(r => r.full_name);
+  throw err;
+}
+
+async function configurarPrimeraVez(token, repo, nombre, pin) {
+  token = token.trim(); repo = (repo || GH_CONFIG.repo).trim();
+  const auth = { token };
+  const info = await resolverRepo(auth, repo);
+  if (info.permissions && !info.permissions.push) throw Object.assign(new Error('sin permiso'), { status: 403 });
+  const secret = { token, owner: info.owner.login, repo: info.name, branch: info.default_branch };
+  gh = { ...secret, nombre };
+  await loadAcceso();
+  acceso.usuarios = acceso.usuarios.filter(u => u.nombre.toLowerCase() !== nombre.toLowerCase());
+  acceso.usuarios.push({ nombre, ...(await encryptSecret(secret, pin)), creado: new Date().toISOString() });
+  await saveAcceso('Configurar acceso: ' + nombre);
+  await startSession(secret, nombre, false);
+}
+
+async function agregarUsuario(nombre, pin) {
+  const secret = { token: gh.token, owner: gh.owner, repo: gh.repo, branch: gh.branch };
+  await loadAcceso();
+  if (acceso.usuarios.some(u => u.nombre.toLowerCase() === nombre.toLowerCase())) throw new Error('Ya existe un usuario con ese nombre.');
+  for (const u of acceso.usuarios) if (await decryptSecret(u, pin)) throw new Error('Ese número ya lo usa ' + u.nombre + '. Elegí otro.');
+  acceso.usuarios.push({ nombre, ...(await encryptSecret(secret, pin)), creado: new Date().toISOString(), creadoPor: gh.nombre });
+  await saveAcceso('Agregar usuario: ' + nombre + ' (' + gh.nombre + ')');
+}
+async function quitarUsuario(nombre) {
+  await loadAcceso();
+  acceso.usuarios = acceso.usuarios.filter(u => u.nombre !== nombre);
+  await saveAcceso('Quitar usuario: ' + nombre + ' (' + gh.nombre + ')');
+}
+
+// ---------- Pantallas ----------
+function renderUsuarios() {
+  const lista = acceso.usuarios.length ? acceso.usuarios.map(u => `<tr>
+      <td><b>${esc(u.nombre)}</b>${u.nombre === gh.nombre ? ' <span class="pill pill-facebank">vos</span>' : ''}</td>
+      <td>${u.creado ? new Date(u.creado).toLocaleDateString('es-AR') : ''}</td>
+      <td>${u.nombre === gh.nombre ? '' : `<button class="btn-danger" data-quitar-usuario="${esc(u.nombre)}">✕ Quitar</button>`}</td>
+    </tr>`).join('') : `<tr><td colspan="3" class="empty-msg">Sin usuarios.</td></tr>`;
+  return `<div class="card">
+    <h2>Usuarios con acceso para editar</h2>
+    <p class="sub">Cada persona entra con su propio número. Para sacarle el acceso a alguien, quitalo de la lista.</p>
+    <div class="tbl-wrap"><table><thead><tr><th>Nombre</th><th>Alta</th><th></th></tr></thead><tbody>${lista}</tbody></table></div>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:0;">Agregar usuario</h3>
+    <form class="addmov" id="form-addusuario" autocomplete="off">
+      <div><label>Nombre</label><input type="text" name="nombre" required placeholder="ej: Lucas"></div>
+      <div><label>Número de acceso (6 a 8 dígitos)</label><input type="password" name="pin" inputmode="numeric" pattern="[0-9]{6,8}" required></div>
+      <div><label>Repetir número</label><input type="password" name="pin2" inputmode="numeric" pattern="[0-9]{6,8}" required></div>
+      <div><button type="submit" class="btn">Agregar</button></div>
+    </form>
+  </div>`;
+}
+function attachUsuariosHandlers() {
+  const f = document.getElementById('form-addusuario');
+  if (f) f.addEventListener('submit', async e => {
+    e.preventDefault();
+    const fd = new FormData(f); const nombre = fd.get('nombre').trim(), pin = fd.get('pin'), pin2 = fd.get('pin2');
+    if (pin !== pin2) { alert('Los números no coinciden.'); return; }
+    const btn = f.querySelector('button'); btn.disabled = true; btn.textContent = 'Guardando...';
+    try { await agregarUsuario(nombre, pin); showToast('Usuario ' + nombre + ' agregado ✓'); renderAll(); }
+    catch (err) { alert(err.status ? errMsg(err, 'No se pudo agregar el usuario.') : err.message); btn.disabled = false; btn.textContent = 'Agregar'; }
+  });
+  document.querySelectorAll('[data-quitar-usuario]').forEach(b => b.addEventListener('click', async () => {
+    const n = b.dataset.quitarUsuario;
+    if (!confirm('¿Quitarle el acceso a ' + n + '?')) return;
+    try { await quitarUsuario(n); showToast('Acceso de ' + n + ' quitado'); renderAll(); }
+    catch (err) { alert(errMsg(err, 'No se pudo quitar.')); }
+  }));
+}
+
 function openLogin() {
-  const m = document.getElementById('login-modal');
-  m.style.display = 'flex';
-  document.getElementById('login-error').textContent = '';
-  setTimeout(() => document.getElementById('login-token').focus(), 50);
+  document.getElementById('login-modal').style.display = 'flex';
+  showLoginStep('pin');
 }
 function closeLogin() { document.getElementById('login-modal').style.display = 'none'; }
-
+function showLoginStep(step) {
+  document.getElementById('step-pin').style.display = step === 'pin' ? 'block' : 'none';
+  document.getElementById('step-setup').style.display = step === 'setup' ? 'block' : 'none';
+  document.querySelectorAll('.login-error').forEach(e => e.textContent = '');
+  setTimeout(() => { const el = document.getElementById(step === 'pin' ? 'login-pin' : 'setup-token'); if (el) el.focus(); }, 50);
+}
 function showToast(msg, isError) {
   const t = document.getElementById('toast');
   t.textContent = msg; t.className = 'toast show' + (isError ? ' err' : '');
   clearTimeout(t._h); t._h = setTimeout(() => { t.className = 'toast'; }, 6000);
 }
-
-// Achica la foto en el navegador (máx. 1600 px) para que el repositorio no se llene.
 function compressImage(file) {
   return new Promise((resolve, reject) => {
     const img = new Image(); const url = URL.createObjectURL(file);
@@ -1232,38 +1372,54 @@ function compressImage(file) {
       if (w > max || h > max) { const k = max / Math.max(w, h); w = Math.round(w * k); h = Math.round(h * k); }
       const c = document.createElement('canvas'); c.width = w; c.height = h;
       c.getContext('2d').drawImage(img, 0, 0, w, h);
-      URL.revokeObjectURL(url);
-      resolve(c.toDataURL('image/jpeg', 0.82));
+      URL.revokeObjectURL(url); resolve(c.toDataURL('image/jpeg', 0.82));
     };
     img.onerror = reject; img.src = url;
   });
 }
-
 function setupAuthUI() {
-  document.getElementById('login-form').addEventListener('submit', async (e) => {
+  document.getElementById('form-pin').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const btn = e.target.querySelector('button[type="submit"]'); const err = document.getElementById('login-error');
+    const btn = e.target.querySelector('button[type="submit"]'), err = document.getElementById('pin-error');
+    const pin = document.getElementById('login-pin').value.trim();
     btn.disabled = true; btn.textContent = 'Verificando...'; err.textContent = '';
     try {
-      await login(document.getElementById('login-token').value, document.getElementById('login-repo').value, document.getElementById('login-remember').checked);
-      closeLogin(); showToast('Modo edición activado ✓');
-    } catch (ex) {
-      console.error(ex);
-      err.textContent = ex.status === 401 ? 'Clave incorrecta o vencida.'
-        : ex.status === 404 ? 'No se encontró el repositorio. Revisá el nombre en "Repositorio".'
-        : ex.status === 403 ? 'La clave no tiene permiso de escritura sobre este repositorio.'
-        : 'No se pudo verificar la clave (¿sin conexión?).';
-    } finally { btn.disabled = false; btn.textContent = 'Ingresar'; }
+      const nombre = await loginConPin(pin, document.getElementById('login-remember').checked);
+      closeLogin(); document.getElementById('login-pin').value = ''; showToast('Hola ' + nombre + ' — modo edición activado ✓');
+    } catch (ex) { err.textContent = ex.message; document.getElementById('login-pin').select(); }
+    finally { btn.disabled = false; btn.textContent = 'Ingresar'; }
   });
-  document.getElementById('login-cancel').addEventListener('click', closeLogin);
-  document.getElementById('login-repo').value = GH_CONFIG.repo;
+  document.getElementById('form-setup').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target), err = document.getElementById('setup-error'), btn = e.target.querySelector('button[type="submit"]');
+    if (fd.get('pin') !== fd.get('pin2')) { err.textContent = 'Los números no coinciden.'; return; }
+    btn.disabled = true; btn.textContent = 'Configurando...'; err.textContent = '';
+    try {
+      await configurarPrimeraVez(fd.get('token'), fd.get('repo'), fd.get('nombre').trim(), fd.get('pin'));
+      closeLogin(); e.target.reset(); document.getElementById('setup-repo').value = GH_CONFIG.repo;
+      showToast('Acceso configurado ✓ — desde ahora entrás solo con tu número.');
+    } catch (ex) {
+      console.error(ex); gh = null;
+      if (ex.status === 404) document.querySelector('#step-setup details').open = true;
+      err.textContent = ex.status === 401 ? 'El token de GitHub es incorrecto o venció.'
+        : ex.status === 404 ? (ex.disponibles && ex.disponibles.length
+            ? 'No encontré "' + (document.getElementById('setup-repo').value || GH_CONFIG.repo) + '". Este token tiene acceso a: ' + ex.disponibles.join(', ') + '.\nAbrí "Avanzado" y escribí el nombre correcto.'
+            : 'El token no tiene acceso a ningún repositorio. En GitHub, editá el token → "Repository access" → elegí el repositorio de la caja y guardá.')
+        : ex.status === 403 ? 'El token no tiene permiso de escritura sobre este repositorio.'
+        : 'No se pudo configurar (¿sin conexión?).';
+    } finally { btn.disabled = false; btn.textContent = 'Guardar y entrar'; }
+  });
+  document.querySelectorAll('[data-close-login]').forEach(b => b.addEventListener('click', closeLogin));
+  document.getElementById('go-setup').addEventListener('click', () => showLoginStep('setup'));
+  document.getElementById('go-pin').addEventListener('click', () => showLoginStep('pin'));
+  document.getElementById('setup-repo').value = GH_CONFIG.repo;
 }
-
 async function init() {
   setupAuthUI();
   renderAll();
+  loadAcceso();
   let saved = null;
-  try { saved = JSON.parse(localStorage.getItem(LS_KEY) || 'null'); } catch(_) {}
+  try { saved = JSON.parse(sessionStorage.getItem(LS_KEY) || localStorage.getItem(LS_KEY) || 'null'); } catch(_) {}
   if (saved && saved.token) { gh = saved; document.body.classList.add('editor'); await loadEditorData(); }
   else await loadPublicData();
 }
