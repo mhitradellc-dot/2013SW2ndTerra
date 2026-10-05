@@ -1,0 +1,11 @@
+{
+ "usuarios": [
+  {
+   "nombre": "Nacho",
+   "salt": "Pd6GCtnQ9JsTSysJQkk0eQ==",
+   "iv": "7PARkiYRZoRQY24w",
+   "ct": "SwhCwVmzd2VNSCMQrz+UyXJI0OlDKy4hP5KXT9glpKwrmQz0EOyprRqGx7Nzqj44LewQrc14d5/AOmI7TCEhGvakzJ1f7pEQ3tHcDRnRaCIROLxmDtMNzfU/ENMJijAQLrTEkKPSJ+mrpPgMlBnsjr5nrc/OUmHrc2xy/9ba/+9N2T1O8uvkHZXgzd5iIEyilLskBGDYUKKjSC71eQxkimrVtr2n0RPUI4mJnoeehlzzHnJLqv1wSQEOFg==",
+   "creado": "2026-10-05T22:15:13.621Z"
+  }
+ ]
+}
