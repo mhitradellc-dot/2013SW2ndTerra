@@ -119,6 +119,7 @@ body.editor .viewer-only { display:none !important; }
 .toast { position:fixed; left:50%; bottom:20px; transform:translateX(-50%) translateY(30px); background:var(--navy-dark); color:#fff; padding:11px 16px; border-radius:8px; font-size:13px; opacity:0; pointer-events:none; transition:all .25s; z-index:120; max-width:calc(100% - 32px); box-shadow:0 4px 16px rgba(0,0,0,0.25); }
 .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
 .toast.err { background:var(--red); }
+.filtro-row th { background:var(--navy-dark); padding:5px 6px; position:static; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
@@ -595,21 +596,54 @@ async function downloadCuentasExcel() {
   }
 }
 
+let cuentaFiltros = {}; // filtros por cuenta: {fecha, proveedor, clasif, concepto, debe, haber}
+function getCuentaFiltro(cuenta) {
+  if (!cuentaFiltros[cuenta]) cuentaFiltros[cuenta] = { fecha:'', proveedor:'', clasif:'', concepto:'', debe:'', haber:'' };
+  return cuentaFiltros[cuenta];
+}
 function renderCuenta(cuenta) {
-  const movs = movimientos.filter(m => m.cuenta === cuenta).sort((a,b) => (a.fecha||'').localeCompare(b.fecha||''));
+  const movsAll = movimientos.filter(m => m.cuenta === cuenta).sort((a,b) => (a.fecha||'').localeCompare(b.fecha||''));
+  // El saldo acumulado se calcula sobre TODOS los movimientos de la cuenta (saldo real),
+  // y después se aplican los filtros para mostrar solo las filas elegidas.
   let acum = 0;
-  const rows = movs.length ? movs.map(m => {
-    acum += (m.debe||0) - (m.haber||0);
-    return `<tr>
+  const conSaldo = movsAll.map(m => { acum += (m.debe||0) - (m.haber||0); return { ...m, _saldo: acum }; });
+  const F = getCuentaFiltro(cuenta);
+  const kw = F.concepto.trim().toLowerCase();
+  const movs = conSaldo.filter(m =>
+    (!F.fecha || (F.fecha === 'sin' ? !m.fecha : (m.fecha||'').slice(0,7) === F.fecha)) &&
+    (!F.proveedor || (m.proveedor||'') === F.proveedor) &&
+    (!F.clasif || m.clasificacion === F.clasif) &&
+    (!kw || (m.concepto||'').toLowerCase().includes(kw)) &&
+    (!F.debe || (F.debe === 'con' ? (m.debe||0) > 0 : !(m.debe||0))) &&
+    (!F.haber || (F.haber === 'con' ? (m.haber||0) > 0 : !(m.haber||0)))
+  );
+  const hayFiltro = Object.values(F).some(v => v);
+
+  const uniq = arr => [...new Set(arr)].sort((a,b)=>a.localeCompare(b));
+  const meses = uniq(movsAll.filter(m=>m.fecha).map(m=>m.fecha.slice(0,7)));
+  const proveedores = uniq(movsAll.map(m=>m.proveedor||'').filter(Boolean));
+  const clasifs = uniq(movsAll.map(m=>m.clasificacion||'').filter(Boolean));
+  const opt = (val, label, sel) => `<option value="${esc(val)}" ${val===sel?'selected':''}>${esc(label)}</option>`;
+  const selStyle = 'width:100%; min-width:90px; padding:4px 6px; border:1px solid var(--line); border-radius:4px; font-size:11.5px; font-family:inherit; background:var(--panel); color:var(--ink); text-transform:none; font-weight:400;';
+  const filtroRow = `<tr class="filtro-row">
+    <th><select data-cf="fecha" style="${selStyle}">${opt('','Todas',F.fecha)}${meses.map(mk=>opt(mk, monthLabel(mk), F.fecha)).join('')}${movsAll.some(m=>!m.fecha)?opt('sin','Sin fecha',F.fecha):''}</select></th>
+    <th><select data-cf="proveedor" style="${selStyle}">${opt('','Todos',F.proveedor)}${proveedores.map(v=>opt(v,v,F.proveedor)).join('')}</select></th>
+    <th><select data-cf="clasif" style="${selStyle}">${opt('','Todas',F.clasif)}${clasifs.map(v=>opt(v,v,F.clasif)).join('')}</select></th>
+    <th><input type="text" data-cf="concepto" id="cf-concepto" placeholder="Buscar..." value="${esc(F.concepto)}" style="${selStyle}"></th>
+    <th><select data-cf="debe" style="${selStyle}">${opt('','Todos',F.debe)}${opt('con','Con monto',F.debe)}${opt('sin','Vacíos',F.debe)}</select></th>
+    <th><select data-cf="haber" style="${selStyle}">${opt('','Todos',F.haber)}${opt('con','Con monto',F.haber)}${opt('sin','Vacíos',F.haber)}</select></th>
+    <th>${hayFiltro ? `<button type="button" id="cf-limpiar" class="btn" style="background:var(--gold); color:var(--navy-dark); padding:4px 10px; font-size:11px;">Limpiar</button>` : ''}</th>
+  </tr>`;
+
+  const rows = movs.length ? movs.map(m => `<tr>
       <td>${m.fecha ? new Date(m.fecha+'T00:00:00').toLocaleDateString('es-AR') : '—'}</td>
       <td>${esc(m.proveedor)}</td>
       <td>${esc(m.clasificacion)}</td>
       <td>${esc(m.concepto)}</td>
       <td class="num pos">${m.debe ? fmt(m.debe) : ''}</td>
       <td class="num neg">${m.haber ? fmt(m.haber) : ''}</td>
-      <td class="num">${fmt(acum)}</td>
-    </tr>`;
-  }).join('') : `<tr><td colspan="7" class="empty-msg">Sin movimientos en esta cuenta todavía.</td></tr>`;
+      <td class="num">${fmt(m._saldo)}</td>
+    </tr>`).join('') : `<tr><td colspan="7" class="empty-msg">${movsAll.length ? 'Ningún movimiento coincide con los filtros.' : 'Sin movimientos en esta cuenta todavía.'}</td></tr>`;
 
   const totalDebe = movs.reduce((s,m)=>s+(m.debe||0),0);
   const totalHaber = movs.reduce((s,m)=>s+(m.haber||0),0);
@@ -617,12 +651,15 @@ function renderCuenta(cuenta) {
   return `
   <div class="card">
     <h2>Cuenta — ${esc(cuenta)}</h2>
-    <p class="sub">Se completa automáticamente desde Movimientos.</p>
+    <p class="sub">Se completa automáticamente desde Movimientos. Usá los filtros de arriba de cada columna. ${hayFiltro ? `<b>Mostrando ${movs.length} de ${movsAll.length} movimientos.</b> El saldo acumulado es el real de la cuenta.` : ''}</p>
     <div class="tbl-wrap"><table>
-      <thead><tr><th>Fecha</th><th>Proveedor</th><th>Clasificación</th><th>Concepto</th><th>DEBE</th><th>HABER</th><th>Saldo acumulado</th></tr></thead>
+      <thead>
+        <tr><th>Fecha</th><th>Proveedor</th><th>Clasificación</th><th>Concepto</th><th>DEBE</th><th>HABER</th><th>Saldo acumulado</th></tr>
+        ${filtroRow}
+      </thead>
       <tbody>${rows}</tbody>
       <tfoot><tr class="total-row">
-        <td colspan="4">TOTALES</td>
+        <td colspan="4">${hayFiltro ? 'TOTALES (filtrado)' : 'TOTALES'}</td>
         <td class="num pos">${fmt(totalDebe)}</td>
         <td class="num neg">${fmt(totalHaber)}</td>
         <td class="num">${fmt(totalDebe-totalHaber)}</td>
@@ -960,6 +997,20 @@ function renderAuth() {
 }
 
 function attachHandlers() {
+  const cuentaActual = { mercury:'Mercury', facebank:'Facebank', escrow:'Escrow', otras:'Otras' }[currentTab];
+  if (cuentaActual) {
+    document.querySelectorAll('select[data-cf]').forEach(el => el.addEventListener('change', () => {
+      getCuentaFiltro(cuentaActual)[el.dataset.cf] = el.value; renderAll();
+    }));
+    const cfc = document.getElementById('cf-concepto');
+    if (cfc) cfc.addEventListener('input', () => {
+      getCuentaFiltro(cuentaActual).concepto = cfc.value; renderAll();
+      const el = document.getElementById('cf-concepto');
+      if (el) { el.focus(); el.selectionStart = el.selectionEnd = el.value.length; }
+    });
+    const cfl = document.getElementById('cf-limpiar');
+    if (cfl) cfl.addEventListener('click', () => { delete cuentaFiltros[cuentaActual]; renderAll(); });
+  }
   const form = document.getElementById('form-addmov');
   if (form) {
     form.addEventListener('submit', async (e) => {
