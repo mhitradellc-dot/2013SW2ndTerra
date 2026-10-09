@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>2nd Terrace — Control de Caja</title>
+<title>Proyecto 2nd Terrace Cape Coral</title>
 <style>
 :root {
   --navy:#1B4E7B; --navy-dark:#12314A; --gold:#D3A468; --teal:#5B9788; --red:#C0564A;
@@ -126,7 +126,7 @@ body.editor .viewer-only { display:none !important; }
 <header>
   <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
     <div>
-      <h1>Proyecto 2nd Terrace</h1>
+      <h1>Proyecto 2nd Terrace Cape Coral</h1>
       <p>Cape Coral, Florida — Control de caja y operativo</p>
     </div>
     <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;"><div id="info-menu"></div><div id="auth-box"></div></div>
@@ -712,7 +712,7 @@ function getTransferPairs(cuentaFiltro) {
 function renderCashFlow() {
   const months = getMonthRange();
   const egresoLabels = EGRESO_ITEMS.map(i=>i.key);
-  const ingresoLabels = INGRESO_ITEMS.filter(l => l !== 'Transferencia entre cuentas');
+  const ingresoLabels = INGRESO_ITEMS.filter(l => l !== 'Transferencia entre cuentas' && l !== 'Materiales de construccion y mano de obra');
   const filtro = cashflowCuentaFilter === 'ALL' ? null : cashflowCuentaFilter;
 
   // Ingresos/Egresos netean DEBE contra HABER dentro de cada clasificación: si una
