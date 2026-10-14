@@ -303,5 +303,27 @@
    "createdAt": "2026-09-30T20:05:13.221Z"
   }
  ],
- "actualizado": "2026-10-05"
+ "invoices": [
+  {
+   "id": "inv-mv8loqbr-bkt8h",
+   "fecha": "2026-10-14",
+   "numero": "JDS3185",
+   "proveedor": "Central Florida Truss",
+   "clasificacion": "Trozas",
+   "concepto": "ROOF TRUSSES PER LAYOUT # JDS3185",
+   "monto": 9724,
+   "vencimiento": "2026-10-24",
+   "tipo": "Cotización",
+   "dominio": "cftruss.com",
+   "archivo": {
+    "path": "invoices/inv-mv8loqbr-bkt8h-mv8loqc2.pdf",
+    "nombre": "JDS3185-Proposal.PDF",
+    "tipo": "application/pdf"
+   },
+   "movIds": [],
+   "createdAt": "2026-10-14T21:07:02.282Z",
+   "creadoPor": "Nacho"
+  }
+ ],
+ "actualizado": "2026-10-14T21:07:02.282Z"
 }
