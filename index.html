@@ -120,6 +120,7 @@ body.editor .viewer-only { display:none !important; }
 .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
 .toast.err { background:var(--red); }
 .filtro-row th { background:var(--navy-dark); padding:5px 6px; position:static; }
+form.addmov .autofill { background:#FFF3C4 !important; border-color:var(--gold) !important; color:#1C2733 !important; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
@@ -204,6 +205,7 @@ const TABS = [
   {id:'resumen', label:'Resumen Económico/Financiero'},
   {id:'cashflow', label:'Cash Flow'},
   {id:'movimientos', label:'Movimientos'},
+  {id:'invoices', label:'Invoices'},
   {id:'gastos', label:'Control de Gastos'},
   {id:'budget', label:'Budget vs Real'},
 ];
@@ -269,11 +271,13 @@ function renderAll() {
     case 'cashflow': el.innerHTML = renderCashFlow(); break;
     case 'gastos': el.innerHTML = renderGastos(); break;
     case 'budget': el.innerHTML = renderBudget(); break;
+    case 'invoices': el.innerHTML = renderInvoices(); break;
     case 'usuarios': el.innerHTML = isEditor() ? renderUsuarios() : ''; break;
   }
   main.appendChild(el);
   attachHandlers();
   attachUsuariosHandlers();
+  attachInvoiceHandlers();
 }
 </script>
 <script>
@@ -453,13 +457,14 @@ function renderMovimientos() {
   const clasifOptions = `<option value="ALL" ${!clasifFiltro?'selected':''}>Todas las clasificaciones</option>` +
     CLASIFICACIONES.map(c => `<option value="${esc(c)}" ${clasifFiltro===c?'selected':''}>${esc(c)}</option>`).join('');
 
+  const movInvMap = movInvoiceMap();
   const rows = sortedDetalle.length ? sortedDetalle.map(m => `
     <tr${m.id===editingMovId ? ' style="background:#FFF6DD;"' : ''}>
       <td>${m.fecha ? new Date(m.fecha+'T00:00:00').toLocaleDateString('es-AR') : '—'}</td>
       <td><span class="pill pill-${m.cuenta.toLowerCase()}">${esc(m.cuenta)}</span></td>
       <td>${esc(m.proveedor)}</td>
       <td>${esc(m.clasificacion)}</td>
-      <td>${esc(m.concepto)}</td>
+      <td>${esc(m.concepto)}${movInvMap[m.id] ? ` <span title="Vinculado al invoice ${esc(movInvMap[m.id].numero||'')} de ${esc(movInvMap[m.id].proveedor)}">🧾</span>` : ''}</td>
       <td class="num pos">${m.debe ? fmt(m.debe) : ''}</td>
       <td class="num neg">${m.haber ? fmt(m.haber) : ''}</td>
       <td class="edit-only" style="white-space:nowrap;">
@@ -884,23 +889,21 @@ function renderGastos() {
 
 // ===================== BUDGET VS REAL =====================
 function renderBudget() {
+  const pend = pendienteInvoicesPorClasif();
   function itemRow(key, budget) {
     const real = sumTotal(key, 'haber');
-    const saldo = budget - real;
-    const pctEj = budget ? (real/budget) : (real?Infinity:0);
-    return {key, budget, real, saldo, pctEj};
+    const pendiente = pend[key] || 0;
+    return {key, budget, real, pendiente};
   }
   const softRows = SOFT_KEYS.map(k => itemRow(k, EGRESO_ITEMS.find(i=>i.key===k).budget));
   const hardRows = HARD_KEYS.map(k => itemRow(k, EGRESO_ITEMS.find(i=>i.key===k).budget));
   const loteRow = itemRow('Lote', EGRESO_ITEMS.find(i=>i.key==='Lote').budget);
   const surveyRow = itemRow('Survey', 0);
-
-  const softBudget = softRows.reduce((s,r)=>s+r.budget,0);
-  const softReal = softRows.reduce((s,r)=>s+r.real,0);
-  const hardBudget = hardRows.reduce((s,r)=>s+r.budget,0);
-  const hardReal = hardRows.reduce((s,r)=>s+r.real,0);
-  const totalBudget = loteRow.budget + softBudget + hardBudget;
-  const totalReal = loteRow.real + softReal + hardReal;
+  const sum = (rows, f) => rows.reduce((s,r)=>s+r[f],0);
+  const agg = (rows) => ({ budget: sum(rows,'budget'), real: sum(rows,'real'), pendiente: sum(rows,'pendiente') });
+  const soft = agg(softRows), hard = agg(hardRows);
+  const total = agg([loteRow, ...softRows, ...hardRows]);
+  const sinLote = { budget: total.budget-loteRow.budget, real: total.real-loteRow.real, pendiente: total.pendiente-loteRow.pendiente };
 
   function miniBar(ratio, hasBudget) {
     if (!hasBudget) return '';
@@ -910,35 +913,41 @@ function renderBudget() {
       <div style="width:${pctCapped.toFixed(1)}%; height:100%; background:${over?'var(--red)':'var(--teal)'};"></div>
     </div>`;
   }
-  function ejecCell(pctEj, budget) {
+  function ejecCell(real, budget) {
+    const pctEj = budget ? real/budget : (real?Infinity:0);
     const pctStr = budget ? pct(pctEj) : (pctEj?'—':'0.0%');
     return `<div style="display:flex; align-items:center; gap:8px; justify-content:flex-end;">${miniBar(pctEj, !!budget)}<span style="min-width:48px; text-align:right;">${pctStr}</span></div>`;
   }
-  function rowHtml(r) {
-    return `<tr><td>${esc(r.key)}</td><td class="num">${fmt(r.budget)}</td><td class="num">${fmt(r.real)}</td><td class="num">${fmt(r.saldo)}</td><td class="num">${ejecCell(r.pctEj, r.budget)}</td></tr>`;
+  function cells(r) {
+    const libre = r.budget - r.real - r.pendiente;
+    return `<td class="num">${fmt(r.budget)}</td><td class="num">${fmt(r.real)}</td>
+      <td class="num" style="color:var(--gold)">${r.pendiente ? fmt(r.pendiente) : '-'}</td>
+      <td class="num">${fmt(r.budget - r.real)}</td>
+      <td class="num ${libre<0?'neg':''}">${fmt(libre)}</td>
+      <td class="num">${ejecCell(r.real, r.budget)}</td>`;
   }
-  function subtotalHtml(label, budget, real) {
-    const pctEj = budget ? real/budget : (real?Infinity:0);
-    return `<tr class="total-row"><td>${label}</td><td class="num">${fmt(budget)}</td><td class="num">${fmt(real)}</td><td class="num">${fmt(budget-real)}</td><td class="num">${ejecCell(pctEj, budget)}</td></tr>`;
-  }
+  const rowHtml = r => `<tr><td>${esc(r.key)}</td>${cells(r)}</tr>`;
+  const subtotalHtml = (label, r) => `<tr class="total-row"><td>${label}</td>${cells(r)}</tr>`;
+  const sp = `<tr><td colspan="7">&nbsp;</td></tr>`;
 
   return `
   <div class="card">
     <h2>Budget vs Real — 2nd Terrace</h2>
+    <p class="sub"><b>Real</b> = pagos registrados en Movimientos. <b>Pend. invoices</b> = facturas cargadas que todavía no se pagaron (cuando se paga y se concilia, pasa a Real). <b>Saldo libre</b> = Budget − Real − Pendiente.</p>
     <div class="tbl-wrap"><table>
-      <thead><tr><th>Clasificación</th><th>Budget</th><th>Real</th><th>Saldo</th><th>% Ejec.</th></tr></thead>
+      <thead><tr><th>Clasificación</th><th>Budget</th><th>Real</th><th>Pend. invoices</th><th>Saldo</th><th>Saldo libre</th><th>% Ejec.</th></tr></thead>
       <tbody>
-        ${subtotalHtml('Lote', loteRow.budget, loteRow.real)}
-        <tr><td colspan="5">&nbsp;</td></tr>
+        ${subtotalHtml('Lote', loteRow)}
+        ${sp}
         ${softRows.map(rowHtml).join('')}
-        ${subtotalHtml('Total Soft Costs', softBudget, softReal)}
-        <tr><td colspan="5">&nbsp;</td></tr>
+        ${subtotalHtml('Total Soft Costs', soft)}
+        ${sp}
         ${hardRows.map(rowHtml).join('')}
         ${rowHtml(surveyRow)}
-        ${subtotalHtml('Total Hard Costs', hardBudget, hardReal)}
-        <tr><td colspan="5">&nbsp;</td></tr>
-        ${subtotalHtml('TOTAL', totalBudget, totalReal)}
-        ${subtotalHtml('Total sin lote', totalBudget-loteRow.budget, totalReal-loteRow.real)}
+        ${subtotalHtml('Total Hard Costs', hard)}
+        ${sp}
+        ${subtotalHtml('TOTAL', total)}
+        ${subtotalHtml('Total sin lote', sinLote)}
       </tbody>
     </table></div>
   </div>`;
@@ -983,6 +992,505 @@ function renderBudget() {
   </div>
 </div>
 <div class="toast" id="toast"></div>
+<script>
+// ===================== LECTOR DE PDF (gratis, sin IA) =====================
+// Saca el texto del PDF con pdf.js y aplica reglas para proponer fecha, N°, monto, vencimiento,
+// proveedor, clasificación y tipo. Solo funciona con PDFs digitales (no con fotos ni escaneos).
+const PDFJS_URL = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js';
+const PDFJS_WORKER = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+let pdfjsPromise = null;
+function cargarPdfJs() {
+  if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  if (!pdfjsPromise) pdfjsPromise = new Promise((resolve, reject) => {
+    const s = document.createElement('script'); s.src = PDFJS_URL;
+    s.onload = () => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER; resolve(window.pdfjsLib); };
+    s.onerror = () => { pdfjsPromise = null; reject(new Error('No se pudo cargar el lector de PDF')); };
+    document.head.appendChild(s);
+  });
+  return pdfjsPromise;
+}
+// Devuelve el texto del PDF armado en renglones (respetando la posición en la hoja)
+async function extraerTextoPdf(file) {
+  const pdfjsLib = await cargarPdfJs();
+  const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+  const lineas = [];
+  for (let n = 1; n <= Math.min(pdf.numPages, 5); n++) {
+    const page = await pdf.getPage(n);
+    const tc = await page.getTextContent();
+    const items = tc.items.filter(i => i.str && i.str.trim()).map(i => ({ s: i.str, x: i.transform[4], y: i.transform[5] }));
+    items.sort((a, b) => b.y - a.y || a.x - b.x);
+    let actual = null;
+    for (const it of items) {
+      if (actual && Math.abs(actual.y - it.y) <= 3) actual.items.push(it);
+      else { actual = { y: it.y, items: [it] }; lineas.push(actual); }
+    }
+  }
+  return lineas.map(l => l.items.sort((a, b) => a.x - b.x).map(i => i.s.trim()).join('  ').replace(/\s{3,}/g, '  ').trim());
+}
+
+const MESES_EN = { jan:1, feb:2, mar:3, apr:4, may:5, jun:6, jul:7, aug:8, sep:9, sept:9, oct:10, nov:11, dec:12,
+  ene:1, abr:4, ago:8, dic:12 };
+const RE_FECHA = /(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})|(\d{4})-(\d{2})-(\d{2})|([A-Za-z]{3,9})\.?\s+(\d{1,2}),?\s+(\d{4})/;
+function parseFecha(txt) {
+  const m = (txt || '').match(RE_FECHA); if (!m) return null;
+  let y, mo, d;
+  if (m[1]) { mo = +m[1]; d = +m[2]; y = +m[3]; if (y < 100) y += 2000; if (mo > 12 && d <= 12) [mo, d] = [d, mo]; }
+  else if (m[4]) { y = +m[4]; mo = +m[5]; d = +m[6]; }
+  else { mo = MESES_EN[m[7].toLowerCase().slice(0, 4)] || MESES_EN[m[7].toLowerCase().slice(0, 3)]; d = +m[8]; y = +m[9]; if (!mo) return null; }
+  if (!(mo >= 1 && mo <= 12 && d >= 1 && d <= 31 && y > 2000 && y < 2100)) return null;
+  return y + '-' + String(mo).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+}
+function sumarDias(iso, n) { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); }
+const RE_MONTO = /\$?\s?(\d{1,3}(?:,\d{3})+(?:\.\d{2})?|\d+\.\d{2})/g;
+function montosEn(linea) { return [...linea.matchAll(RE_MONTO)].map(m => parseFloat(m[1].replace(/,/g, ''))).filter(v => !isNaN(v)); }
+
+const PALABRAS_CLASIF = [
+  [/\btruss(es)?\b/i, 'Trozas'],
+  [/\bwindows?\b|\bdoors?\b|ventana/i, 'Ventanas'],
+  [/sea\s?wall|seawall/i, 'Sea Wall'],
+  [/\bpool\b|piscina/i, 'Piscinas'],
+  [/\bsurvey\b|agrimens/i, 'Survey'],
+  [/electric/i, 'Electricidad'],
+  [/\bfill\b|\bdirt\b|compact|excavat|grading/i, 'Movimientos de suelo-tierra-compactacion'],
+  [/permit|inspection|architect|engineering|\bplans?\b|drawings/i, 'Gestoria-Habilitacion-inspecciones-planos'],
+  [/plumbing|\bhvac\b|air condition|roofing|insulation|drywall/i, 'Instalaciones'],
+  [/\btax(es)?\b(?!.*\b(state|county|sales)\b)|impuesto/i, 'Impuestos'],
+  [/lumber|concrete|block|cement|material|framing|stucco/i, 'Materiales de construccion y mano de obra'],
+];
+
+function analizarTextoInvoice(lineas, proveedoresConocidos, dominiosConocidos) {
+  const texto = lineas.join('\n');
+  const r = { detectado: [] };
+
+  // Tipo
+  r.tipo = /\b(proposal|estimate|quot(e|ation)|cotizaci[oó]n|presupuesto)\b/i.test(texto) && !/\binvoice\s*(#|no|number|date)/i.test(texto) ? 'Cotización' : 'Invoice';
+
+  // Fecha (prioridad: "invoice date" > "date"/"fecha"; se evita "due date")
+  const conLabel = (re) => { for (const l of lineas) { const m = l.match(re); if (m) { const f = parseFecha(l.slice(m.index + m[0].length)); if (f) return f; } } return null; };
+  r.fecha = conLabel(/invoice\s*date\s*[:#]?/i) || conLabel(/(?<!due\s)(?<!ship\s)\b(date|fecha)\s*:/i) || conLabel(/(?<!due\s)\bdate\b/i);
+  if (!r.fecha) { for (const l of lineas) { const f = parseFecha(l); if (f) { r.fecha = f; break; } } }
+
+  // Vencimiento
+  r.vencimiento = conLabel(/(due\s*date|payment\s*due|vencimiento)\s*[:#]?/i);
+  if (!r.vencimiento && r.fecha) {
+    const net = texto.match(/\bnet\s*(\d{1,3})\b/i);
+    if (net) r.vencimiento = sumarDias(r.fecha, +net[1]);
+    else if (/due\s+(up)?on\s+receipt/i.test(texto)) r.vencimiento = r.fecha;
+  }
+
+  // Monto total
+  // El monto del invoice es el TOTAL facturado (los pagos/anticipos se concilian aparte)
+  const prioridades = [/grand\s*total|invoice\s*total/i, /(?<!sub\s?)(?<!sub)\btotal\b/i, /amount\s*due|balance\s*due/i];
+  for (const re of prioridades) {
+    const cands = lineas.filter(l => re.test(l) && !/sub\s?total|tax|county|state/i.test(l)).flatMap(montosEn);
+    if (cands.length) { r.monto = Math.max(...cands); break; }
+  }
+  if (r.monto == null) { const todos = lineas.flatMap(montosEn); if (todos.length) r.monto = Math.max(...todos); }
+
+  // Número
+  // Se busca renglón por renglón; el número tiene que tener al menos un dígito
+  const reNum = [
+    /invoice[ \t]*(?:no\.?|number|num|#)[ \t]*[:#]?[ \t]*#?[ \t]*([A-Z0-9][A-Z0-9\-\/]{2,})/i,
+    /(?:proposal|estimate|quote|order|layout|job|ref(?:erence)?)[ \t]*(?:no\.?|number|#)[ \t]*[:#]?[ \t]*([A-Z0-9][A-Z0-9\-\/]{2,})/i,
+    /#[ \t]*([A-Z]{0,4}\d[A-Z0-9\-]{2,})/,
+  ];
+  buscarNum: for (const re of reNum) for (const l of lineas) { const m = l.match(re); if (m && /\d/.test(m[1])) { r.numero = m[1]; break buscarNum; } }
+
+  // Proveedor: 1) un proveedor ya usado que aparezca en el texto, 2) dominio de mail ya conocido
+  const nt = normTxt(texto);
+  const prov = proveedoresConocidos.slice().sort((a, b) => b.length - a.length).find(p => {
+    const np = normTxt(p); if (np.length < 4) return false;
+    if (nt.includes(np)) return true;
+    const pal = np.split(' ').filter(w => w.length > 2 && !['llc','inc','corp','and','the','co'].includes(w)).slice(0, 2).join(' ');
+    return pal.length >= 6 && nt.includes(pal);
+  });
+  const dominios = [...texto.matchAll(/[\w.+-]+@([\w-]+\.[\w.]+)/g)].map(m => m[1].toLowerCase()).filter(d => !/gmail|yahoo|hotmail|outlook|aol|icloud/.test(d));
+  r.dominio = dominios[0] || null;
+  r.proveedor = prov || (r.dominio && dominiosConocidos[r.dominio]) || null;
+
+  // Clasificación y concepto
+  for (const [re, clas] of PALABRAS_CLASIF) {
+    const cands = lineas.filter(l => re.test(l) && !/terms|conditions|interest|cancel/i.test(l));
+    if (cands.length) {
+      const np = r.proveedor ? normTxt(r.proveedor) : '';
+      const linea = cands.find(l => montosEn(l).length) || cands.find(l => !np || !normTxt(l).includes(np.split(' ')[0])) || cands[0];
+      r.clasificacion = clas;
+      r.concepto = linea.replace(RE_MONTO, '').replace(/\$\s*$/, '').replace(/\s{2,}/g, ' ').trim().slice(0, 80);
+      break;
+    }
+  }
+
+  for (const k of ['tipo','fecha','numero','proveedor','clasificacion','concepto','monto','vencimiento']) if (r[k] != null && r[k] !== '') r.detectado.push(k);
+  return r;
+}
+
+async function leerInvoiceEnFormulario(file) {
+  const form = document.getElementById('form-addinv'); if (!form) return;
+  const estado = document.getElementById('inv-lectura');
+  const set = (msg, color) => { if (estado) { estado.innerHTML = msg; estado.style.color = color || 'var(--ink-soft)'; } };
+  form.querySelectorAll('.autofill').forEach(el => el.classList.remove('autofill'));
+  if (!file) { set(''); return; }
+  if (!/pdf$/i.test(file.type) && !/\.pdf$/i.test(file.name)) { set('📷 Es una imagen: los datos se cargan a mano.'); return; }
+  set('⏳ Leyendo el PDF…');
+  try {
+    const lineas = await extraerTextoPdf(file);
+    if (lineas.join('').replace(/\s/g, '').length < 30) { set('⚠️ Este PDF parece escaneado (no tiene texto). Cargá los datos a mano.', 'var(--red)'); return; }
+    const proveedores = [...new Set([...movimientos.map(m => m.proveedor), ...invoices.map(i => i.proveedor)].filter(Boolean))];
+    const dominios = {}; invoices.forEach(i => { if (i.dominio && i.proveedor) dominios[i.dominio] = i.proveedor; });
+    const r = analizarTextoInvoice(lineas, proveedores, dominios);
+    form.dataset.dominio = r.dominio || '';
+    const poner = (name, val) => { const el = form.elements[name]; if (!el || val == null || val === '') return; el.value = val; el.classList.add('autofill'); };
+    poner('tipo', r.tipo); poner('fecha', r.fecha); poner('numero', r.numero); poner('proveedor', r.proveedor);
+    if (r.clasificacion && [...form.elements.clasificacion.options].some(o => o.value === r.clasificacion)) poner('clasificacion', r.clasificacion);
+    poner('concepto', r.concepto); poner('monto', r.monto != null ? r.monto.toFixed(2) : null); poner('vencimiento', r.vencimiento);
+    const nombres = { fecha:'fecha', numero:'N°', proveedor:'proveedor', clasificacion:'clasificación', monto:'monto', vencimiento:'vencimiento' };
+    const falta = Object.keys(nombres).filter(k => !r.detectado.includes(k)).map(k => nombres[k]);
+    set(`✅ Completé lo resaltado en amarillo. <b>Revisalo antes de guardar.</b>${falta.length ? ' No encontré: ' + falta.join(', ') + '.' : ''}${r.tipo === 'Cotización' ? ' Parece una <b>cotización</b> (no suma como pendiente hasta que la pases a invoice).' : ''}`, 'var(--teal)');
+  } catch (e) {
+    console.error(e); set('⚠️ No pude leer el PDF. Cargá los datos a mano.', 'var(--red)');
+  }
+}
+</script>
+<script>
+// ===================== INVOICES =====================
+// Cada invoice (factura de proveedor) se carga con su archivo (PDF o foto) y sus datos.
+// Se concilia contra Movimientos: los pagos vinculados son el "real"; lo que falta pagar queda "pendiente".
+let invoices = [];          // {id, fecha, vencimiento, numero, proveedor, clasificacion, concepto, monto, archivo:{path,nombre,tipo}, movIds:[], createdAt, creadoPor}
+let invoicePreview = {};    // archivos recién subidos (se ven antes de que Netlify publique)
+let editingInvId = null;
+let concInvId = null;       // invoice con el panel de conciliación abierto
+let invFiltro = { estado:'', proveedor:'', clasif:'' };
+const NO_FACTURABLES = ['Transferencia entre cuentas','Aportes','Prestamo privado'];
+
+function hoyISO() { const d = new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function fechaAR(f) { return f ? new Date(f+'T00:00:00').toLocaleDateString('es-AR') : '—'; }
+function normTxt(s) { return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim(); }
+function movMap() { const m = {}; movimientos.forEach(x => m[x.id] = x); return m; }
+function invPagos(inv, mm) { mm = mm || movMap(); return (inv.movIds||[]).map(id => mm[id]).filter(Boolean); }
+function invPagado(inv, mm) { return invPagos(inv, mm).reduce((s,m)=>s+(m.haber||0)-(m.debe||0),0); }
+function invSaldo(inv, mm) { return Math.max((inv.monto||0) - invPagado(inv, mm), 0); }
+function invEstado(inv, mm) {
+  if (inv.tipo === 'Cotización') return 'Cotización';
+  const pag = invPagado(inv, mm), monto = inv.monto||0;
+  if (monto > 0 && pag >= monto - 0.005) return 'Pagada';
+  if (inv.vencimiento && inv.vencimiento < hoyISO()) return pag > 0 ? 'Parcial vencida' : 'Vencida';
+  if (pag > 0) return 'Parcial';
+  return 'Pendiente';
+}
+function estadoPill(est) {
+  const st = { 'Pagada':'background:#E4F0EA;color:#2D6B4F', 'Parcial':'background:#FBEBDD;color:#A36A1F',
+    'Pendiente':'background:#DDEBF7;color:#1B4E7B', 'Vencida':'background:#F8DEDA;color:#A23B2F', 'Parcial vencida':'background:#F8DEDA;color:#A23B2F', 'Cotización':'background:#EFE7F5;color:#6A3F94' }[est] || '';
+  return `<span class="pill" style="${st}">${esc(est)}</span>`;
+}
+function movInvoiceMap() { const r = {}; invoices.forEach(inv => (inv.movIds||[]).forEach(id => r[id] = inv)); return r; }
+function egresosSinInvoice() {
+  const linked = movInvoiceMap();
+  return movimientos.filter(m => (m.haber||0) > 0 && !NO_FACTURABLES.includes(m.clasificacion) && !linked[m.id])
+    .sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+}
+// Pendiente de pago por clasificación (para Budget vs Real)
+function pendienteInvoicesPorClasif() {
+  const mm = movMap(), r = {};
+  invoices.forEach(inv => { if (inv.tipo === 'Cotización') return; const s = invSaldo(inv, mm); if (s > 0) r[inv.clasificacion] = (r[inv.clasificacion]||0) + s; });
+  return r;
+}
+function invArchivoUrl(inv) { return invoicePreview[inv.id] || (inv.archivo && inv.archivo.path) || ''; }
+
+function renderInvoices() {
+  const mm = movMap();
+  const editing = editingInvId ? invoices.find(i => i.id === editingInvId) : null;
+  const soloInv = invoices.filter(i => i.tipo !== 'Cotización');
+  const cotiz = invoices.filter(i => i.tipo === 'Cotización');
+  const totFact = soloInv.reduce((s,i)=>s+(i.monto||0),0);
+  const totPag = soloInv.reduce((s,i)=>s+Math.min(invPagado(i,mm), i.monto||0),0);
+  const totPend = soloInv.reduce((s,i)=>s+invSaldo(i,mm),0);
+  const totVenc = soloInv.filter(i => invEstado(i,mm).includes('Vencida')).reduce((s,i)=>s+invSaldo(i,mm),0);
+
+  const proveedores = [...new Set([...movimientos.map(m=>m.proveedor), ...invoices.map(i=>i.proveedor)].filter(p=>p&&p.trim()))].sort((a,b)=>a.localeCompare(b));
+  const clasifEgreso = EGRESO_ITEMS.map(i=>i.key);
+  const v = f => editing ? esc(editing[f] ?? '') : '';
+
+  let lista = invoices.slice().sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+  if (invFiltro.estado) lista = lista.filter(i => invFiltro.estado === 'Pendientes' ? !['Pagada','Cotización'].includes(invEstado(i,mm)) : invEstado(i,mm) === invFiltro.estado);
+  if (invFiltro.proveedor) lista = lista.filter(i => i.proveedor === invFiltro.proveedor);
+  if (invFiltro.clasif) lista = lista.filter(i => i.clasificacion === invFiltro.clasif);
+
+  const opt = (val, label, sel) => `<option value="${esc(val)}" ${val===sel?'selected':''}>${esc(label)}</option>`;
+  const fs = 'padding:6px 10px; border:1px solid var(--line); border-radius:5px; font-size:12.5px; font-family:inherit; background:var(--panel); color:var(--ink);';
+  const provInv = [...new Set(invoices.map(i=>i.proveedor).filter(Boolean))].sort();
+  const clasInv = [...new Set(invoices.map(i=>i.clasificacion).filter(Boolean))].sort();
+
+  const rows = lista.length ? lista.map(inv => {
+    const pag = invPagado(inv, mm), saldo = invSaldo(inv, mm), est = invEstado(inv, mm);
+    const url = invArchivoUrl(inv);
+    const abierto = concInvId === inv.id;
+    return `<tr${inv.id===editingInvId ? ' style="background:#FFF6DD;"' : ''}>
+      <td>${fechaAR(inv.fecha)}</td>
+      <td>${esc(inv.numero)}</td>
+      <td>${esc(inv.proveedor)}</td>
+      <td>${esc(inv.clasificacion)}</td>
+      <td style="white-space:normal; min-width:140px;">${esc(inv.concepto)}</td>
+      <td class="num">${fmt(inv.monto)}</td>
+      <td class="num pos">${pag ? fmt(pag) : ''}</td>
+      <td class="num ${saldo>0?'neg':''}">${saldo ? fmt(saldo) : ''}</td>
+      <td>${inv.vencimiento ? fechaAR(inv.vencimiento) : ''}</td>
+      <td>${estadoPill(est)}</td>
+      <td>${url ? `<a href="${esc(url)}" target="_blank" rel="noopener">📄 Ver</a>` : ''}</td>
+      <td style="white-space:nowrap;">
+        <button class="btn" data-inv-conc="${inv.id}" style="padding:4px 10px; font-size:11.5px; ${abierto?'background:var(--gold); color:var(--navy-dark);':''}">Pagos (${(inv.movIds||[]).filter(id=>mm[id]).length})</button>
+        ${inv.tipo === 'Cotización' ? `<button class="btn edit-only" data-inv-aceptar="${inv.id}" title="Aceptada: pasar a invoice" style="padding:4px 8px; font-size:11px; background:var(--teal);">→ Invoice</button>` : ''}
+        <button class="btn-danger edit-only" data-inv-edit="${inv.id}" title="Editar" style="color:var(--navy);">✎</button>
+        <button class="btn-danger edit-only" data-inv-del="${inv.id}" title="Eliminar">✕</button>
+      </td>
+    </tr>${abierto ? `<tr><td colspan="12" style="white-space:normal; background:var(--bg); padding:14px;">${renderConciliacion(inv, mm)}</td></tr>` : ''}`;
+  }).join('') : `<tr><td colspan="12" class="empty-msg">${invoices.length ? 'Ningún invoice coincide con los filtros.' : 'Todavía no hay invoices cargados.'}</td></tr>`;
+
+  const sinInv = egresosSinInvoice();
+  const rowsSin = sinInv.length ? sinInv.map(m => `<tr>
+      <td>${fechaAR(m.fecha)}</td><td><span class="pill pill-${m.cuenta.toLowerCase()}">${esc(m.cuenta)}</span></td>
+      <td>${esc(m.proveedor)}</td><td>${esc(m.clasificacion)}</td><td>${esc(m.concepto)}</td>
+      <td class="num neg">${fmt(m.haber)}</td></tr>`).join('')
+    : `<tr><td colspan="6" class="empty-msg">Todos los pagos tienen su invoice ✓</td></tr>`;
+
+  return `
+  <div class="card">
+    <h2>Invoices del proyecto</h2>
+    <p class="sub">Facturas de proveedores. Cuando se pagan (se vinculan a un movimiento), ese pago pasa a ser el <b>real</b> del gasto. Lo que falta pagar queda como <b>pendiente</b> y se ve en Budget vs Real.</p>
+    <div class="kpi-grid">
+      <div class="kpi"><div class="lbl">Total facturado</div><div class="val">${fmt(totFact)}</div><div class="subv">${soloInv.length} invoices${cotiz.length ? ` · ${cotiz.length} cotizaciones (${fmt(cotiz.reduce((s,i)=>s+(i.monto||0),0))}) no incluidas` : ''}</div></div>
+      <div class="kpi"><div class="lbl">Pagado (real)</div><div class="val pos">${fmt(totPag)}</div><div class="subv">conciliado con movimientos</div></div>
+      <div class="kpi"><div class="lbl">Pendiente de pago</div><div class="val" style="color:var(--gold)">${fmt(totPend)}</div></div>
+      <div class="kpi"><div class="lbl">Vencido</div><div class="val ${totVenc>0?'neg':''}">${fmt(totVenc)}</div><div class="subv">pendiente con vencimiento pasado</div></div>
+    </div>
+  </div>
+  <div class="card edit-only">
+    <h3 style="margin-top:0;">${editing ? 'Editar invoice' : 'Cargar invoice'}</h3>
+    <form class="addmov" id="form-addinv" data-editing="${editingInvId||''}" autocomplete="off">
+      <div><label>Archivo (PDF o foto)${editing ? ' — opcional' : ''}</label><input type="file" name="archivo" id="inv-archivo" accept="application/pdf,image/*" ${editing?'':'required'}></div>
+      <div><label>Tipo</label><select name="tipo">${['Invoice','Cotización'].map(t=>opt(t,t,editing?(editing.tipo||'Invoice'):'Invoice')).join('')}</select></div>
+      <div><label>Fecha invoice</label><input type="date" name="fecha" value="${v('fecha')}" required></div>
+      <div><label>N° invoice</label><input type="text" name="numero" value="${v('numero')}"></div>
+      <div><label>Proveedor</label><input type="text" name="proveedor" list="dl-proveedores" value="${v('proveedor')}" required></div>
+      <div><label>Clasificación</label><select name="clasificacion" required>${clasifEgreso.map(c=>opt(c,c,editing?editing.clasificacion:'')).join('')}</select></div>
+      <div><label>Concepto</label><input type="text" name="concepto" value="${v('concepto')}"></div>
+      <div><label>Monto (US$)</label><input type="number" step="0.01" min="0" name="monto" value="${editing ? editing.monto : ''}" required></div>
+      <div><label>Vencimiento</label><input type="date" name="vencimiento" value="${v('vencimiento')}"></div>
+      <div style="display:flex; gap:8px;">
+        <button type="submit" class="btn">${editing ? 'Guardar cambios' : 'Guardar invoice'}</button>
+        ${editing ? '<button type="button" class="btn" id="btn-cancel-inv" style="background:var(--ink-faint);">Cancelar</button>' : ''}
+      </div>
+    </form>
+    <p id="inv-lectura" class="sub" style="margin:8px 0 0;">${editing ? '' : '💡 Si subís un PDF digital, intento completar los datos solo.'}</p>
+    <datalist id="dl-proveedores">${proveedores.map(p=>`<option value="${esc(p)}">`).join('')}</datalist>
+    ${editing && editing.archivo ? `<p class="sub" style="margin:8px 0 0;">Archivo actual: <a href="${esc(invArchivoUrl(editing))}" target="_blank" rel="noopener">${esc(editing.archivo.nombre||'ver')}</a>. Si elegís otro, se reemplaza.</p>` : ''}
+  </div>
+  <div class="card">
+    <div style="display:flex; flex-wrap:wrap; gap:12px; margin-bottom:12px; align-items:flex-end;">
+      <h3 style="margin:0; flex:1; min-width:160px;">Listado (${lista.length} de ${invoices.length})</h3>
+      <select data-invf="estado" style="${fs}">${opt('','Todos los estados',invFiltro.estado)}${['Pendientes','Pendiente','Parcial','Vencida','Parcial vencida','Pagada','Cotización'].map(e=>opt(e, e==='Pendientes'?'Todo lo no pagado':e, invFiltro.estado)).join('')}</select>
+      <select data-invf="proveedor" style="${fs} max-width:200px;">${opt('','Todos los proveedores',invFiltro.proveedor)}${provInv.map(p=>opt(p,p,invFiltro.proveedor)).join('')}</select>
+      <select data-invf="clasif" style="${fs} max-width:220px;">${opt('','Todas las clasificaciones',invFiltro.clasif)}${clasInv.map(c=>opt(c,c,invFiltro.clasif)).join('')}</select>
+    </div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Fecha</th><th>N°</th><th>Proveedor</th><th>Clasificación</th><th>Concepto</th><th>Monto</th><th>Pagado</th><th>Saldo</th><th>Vence</th><th>Estado</th><th>Archivo</th><th></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:0;">Pagos sin invoice (${sinInv.length} · ${fmt(sinInv.reduce((s,m)=>s+(m.haber||0),0))})</h3>
+    <p class="sub">Egresos de Movimientos que todavía no están vinculados a ninguna factura (no incluye transferencias, aportes ni préstamos). Para conciliarlos, cargá el invoice y vinculá el pago desde "Pagos".</p>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Fecha</th><th>Cuenta</th><th>Proveedor</th><th>Clasificación</th><th>Concepto</th><th>HABER</th></tr></thead>
+      <tbody>${rowsSin}</tbody>
+    </table></div>
+  </div>`;
+}
+
+function renderConciliacion(inv, mm) {
+  const pagos = invPagos(inv, mm);
+  const saldo = invSaldo(inv, mm);
+  const libres = egresosSinInvoice();
+  const np = normTxt(inv.proveedor);
+  const score = m => {
+    let s = 0; const mp = normTxt(m.proveedor);
+    if (np && mp && (mp.includes(np) || np.includes(mp))) s += 2;
+    if (saldo > 0 && Math.abs((m.haber||0) - saldo) < 0.01) s += 2;
+    if (m.clasificacion === inv.clasificacion) s += 1;
+    return s;
+  };
+  const sugeridos = libres.map(m => ({ m, s: score(m) })).filter(x => x.s >= 2).sort((a,b)=>b.s-a.s).slice(0,5);
+  const movLine = m => `${fechaAR(m.fecha)} · ${esc(m.cuenta)} · ${esc(m.proveedor||'—')} · ${esc(m.concepto||m.clasificacion)} · ${fmt(m.haber)}`;
+  return `
+    <div style="display:grid; gap:14px;">
+      <div>
+        <b>Pagos vinculados a invoice ${esc(inv.numero||'')} — ${esc(inv.proveedor)}</b>
+        <span class="sub"> · Monto ${fmt(inv.monto)} · Pagado ${fmt(invPagado(inv,mm))} · Saldo ${fmt(saldo)}</span>
+        <div class="tbl-wrap" style="margin-top:6px;"><table>
+          <thead><tr><th>Fecha</th><th>Cuenta</th><th>Concepto</th><th>Monto</th><th class="edit-only"></th></tr></thead>
+          <tbody>${pagos.length ? pagos.map(m => `<tr><td>${fechaAR(m.fecha)}</td><td><span class="pill pill-${m.cuenta.toLowerCase()}">${esc(m.cuenta)}</span></td><td>${esc(m.concepto)}</td><td class="num">${fmt((m.haber||0)-(m.debe||0))}</td>
+            <td class="edit-only"><button class="btn-danger" data-inv-unlink="${inv.id}|${m.id}" title="Desvincular">Desvincular</button></td></tr>`).join('')
+            : `<tr><td colspan="5" class="empty-msg">Sin pagos vinculados todavía.</td></tr>`}</tbody>
+        </table></div>
+      </div>
+      <div class="edit-only">
+        <b>Vincular un pago que ya está en Movimientos</b>
+        ${sugeridos.length ? `<div style="margin:6px 0;">${sugeridos.map(({m}) => `<div style="display:flex; gap:8px; align-items:center; margin:4px 0; flex-wrap:wrap;">
+            <span style="font-size:12.5px;">⭐ ${movLine(m)}</span>
+            <button class="btn" data-inv-link="${inv.id}|${m.id}" style="padding:3px 10px; font-size:11.5px;">Vincular</button></div>`).join('')}</div>
+            <p class="sub" style="margin:0 0 6px;">⭐ Sugeridos: mismo proveedor y/o mismo monto que el saldo.</p>` : ''}
+        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+          <select id="inv-link-sel-${inv.id}" style="flex:1; min-width:240px; padding:6px 8px; border:1px solid var(--line); border-radius:5px; font-size:12.5px; font-family:inherit;">
+            <option value="">${libres.length ? 'Elegí otro movimiento de egreso…' : 'No hay egresos sin vincular'}</option>
+            ${libres.map(m => `<option value="${m.id}">${movLine(m)}</option>`).join('')}
+          </select>
+          <button class="btn" data-inv-link-sel="${inv.id}" style="padding:6px 12px; font-size:12px;">Vincular</button>
+        </div>
+      </div>
+      <div class="edit-only">
+        <b>…o registrar el pago ahora</b> <span class="sub">(crea el movimiento de egreso en la cuenta elegida y lo vincula)</span>
+        <form class="addmov" data-inv-pago="${inv.id}" style="margin-top:6px;">
+          <div><label>Fecha de pago</label><input type="date" name="fecha" value="${hoyISO()}" required></div>
+          <div><label>Cuenta</label><select name="cuenta">${CUENTAS.map(c=>`<option value="${c}">${c}</option>`).join('')}</select></div>
+          <div><label>Monto pagado</label><input type="number" step="0.01" min="0.01" name="monto" value="${saldo ? saldo.toFixed(2) : ''}" required></div>
+          <div><label>Medio de pago</label><input type="text" name="medioPago" placeholder="ej: wire, cheque"></div>
+          <div><label>Cheq / Ref.</label><input type="text" name="chequeRef"></div>
+          <div><button type="submit" class="btn">Registrar pago</button></div>
+        </form>
+      </div>
+    </div>`;
+}
+
+function readFileB64(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result).split(',')[1]);
+    r.onerror = reject; r.readAsDataURL(file);
+  });
+}
+
+function attachInvoiceHandlers() {
+  if (currentTab !== 'invoices') return;
+  document.querySelectorAll('[data-invf]').forEach(el => el.addEventListener('change', () => { invFiltro[el.dataset.invf] = el.value; renderAll(); }));
+  const cancel = document.getElementById('btn-cancel-inv');
+  if (cancel) cancel.addEventListener('click', () => { editingInvId = null; renderAll(); });
+
+  const archivoIn = document.getElementById('inv-archivo');
+  if (archivoIn) archivoIn.addEventListener('change', () => leerInvoiceEnFormulario(archivoIn.files[0]));
+  document.querySelectorAll('[data-inv-aceptar]').forEach(b => b.addEventListener('click', async () => {
+    const inv = invoices.find(i => i.id === b.dataset.invAceptar); if (!inv) return;
+    if (!confirm(`¿Pasar la cotización ${inv.numero||''} de ${inv.proveedor} a invoice?\nDesde ahí cuenta como pendiente de pago.`)) return;
+    try { await mutate(d => { const x = d.invoices.find(i => i.id === inv.id); if (x) x.tipo = 'Invoice'; }, 'Cotización aceptada → invoice ' + (inv.numero || inv.proveedor)); }
+    catch (err) { const msg = errMsg(err, 'No se pudo actualizar.'); if (msg) alert(msg); console.error(err); }
+  }));
+  const form = document.getElementById('form-addinv');
+  if (form) form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(form);
+    const editId = form.dataset.editing || null;
+    const datos = {
+      fecha: fd.get('fecha') || null, numero: (fd.get('numero')||'').trim(), proveedor: (fd.get('proveedor')||'').trim(),
+      clasificacion: fd.get('clasificacion'), concepto: (fd.get('concepto')||'').trim(),
+      monto: parseFloat(fd.get('monto')) || 0, vencimiento: fd.get('vencimiento') || null,
+      tipo: fd.get('tipo') || 'Invoice',
+    };
+    if (form.dataset.dominio) datos.dominio = form.dataset.dominio;
+    const file = fd.get('archivo');
+    const btn = form.querySelector('button[type="submit"]'); const lbl = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Guardando...';
+    try {
+      if (!isEditor()) { openLogin(); throw Object.assign(new Error('sin acceso'), { code: 'nologin' }); }
+      const id = editId || newId('inv');
+      const files = [];
+      let archivo = null;
+      if (file && file.size) {
+        if (file.size > 20*1024*1024) throw Object.assign(new Error('grande'), { userMsg: 'El archivo pesa más de 20 MB. Achicalo o sacale foto de nuevo.' });
+        let b64, ext, tipo;
+        if (file.type.startsWith('image/')) { b64 = (await compressImage(file)).split(',')[1]; ext = 'jpg'; tipo = 'image/jpeg'; }
+        else { b64 = await readFileB64(file); ext = (file.name.split('.').pop() || 'pdf').toLowerCase().replace(/[^a-z0-9]/g,'') || 'pdf'; tipo = file.type || 'application/pdf'; }
+        const path = 'invoices/' + id + '-' + Date.now().toString(36) + '.' + ext;
+        files.push({ path, b64 });
+        archivo = { path, nombre: file.name, tipo };
+        invoicePreview[id] = URL.createObjectURL(file);
+      }
+      if (editId) {
+        const prev = invoices.find(i => i.id === editId);
+        if (archivo && prev && prev.archivo && prev.archivo.path) files.push({ path: prev.archivo.path, delete: true });
+        await mutate(d => {
+          const i = d.invoices.findIndex(x => x.id === editId);
+          if (i > -1) d.invoices[i] = { ...d.invoices[i], ...datos, ...(archivo ? { archivo } : {}) };
+        }, 'Editar invoice ' + (datos.numero || datos.proveedor), files);
+        editingInvId = null;
+      } else {
+        await mutate(d => {
+          d.invoices.push({ id, ...datos, archivo, movIds: [], createdAt: new Date().toISOString(), creadoPor: gh.nombre });
+        }, 'Nuevo invoice ' + (datos.numero || '') + ' ' + datos.proveedor, files);
+      }
+      renderAll();
+    } catch (err) {
+      const msg = err.userMsg || errMsg(err, 'No se pudo guardar el invoice.'); if (msg) alert(msg);
+      console.error(err); btn.disabled = false; btn.textContent = lbl;
+    }
+  });
+
+  document.querySelectorAll('[data-inv-conc]').forEach(b => b.addEventListener('click', () => {
+    concInvId = concInvId === b.dataset.invConc ? null : b.dataset.invConc; renderAll();
+  }));
+  document.querySelectorAll('[data-inv-edit]').forEach(b => b.addEventListener('click', () => {
+    if (!isEditor()) { openLogin(); return; }
+    editingInvId = b.dataset.invEdit; renderAll(); window.scrollTo({top:0});
+  }));
+  document.querySelectorAll('[data-inv-del]').forEach(b => b.addEventListener('click', async () => {
+    if (!isEditor()) { openLogin(); return; }
+    const inv = invoices.find(i => i.id === b.dataset.invDel); if (!inv) return;
+    if (!confirm(`¿Eliminar el invoice ${inv.numero || ''} de ${inv.proveedor}?\nLos pagos vinculados NO se borran de Movimientos (solo quedan sin invoice).`)) return;
+    try {
+      await mutate(d => { d.invoices = d.invoices.filter(i => i.id !== inv.id); }, 'Eliminar invoice ' + (inv.numero || inv.proveedor),
+        inv.archivo && inv.archivo.path ? [{ path: inv.archivo.path, delete: true }] : []);
+    } catch (err) { const msg = errMsg(err, 'No se pudo eliminar.'); if (msg) alert(msg); console.error(err); }
+  }));
+
+  const linkar = async (invId, movId) => {
+    try {
+      await mutate(d => {
+        d.invoices.forEach(i => { i.movIds = (i.movIds||[]).filter(x => x !== movId); }); // un pago se vincula a un solo invoice
+        const inv = d.invoices.find(i => i.id === invId); if (inv) inv.movIds.push(movId);
+      }, 'Conciliar pago con invoice');
+    } catch (err) { const msg = errMsg(err, 'No se pudo vincular.'); if (msg) alert(msg); console.error(err); }
+  };
+  document.querySelectorAll('[data-inv-link]').forEach(b => b.addEventListener('click', () => { const [i,m] = b.dataset.invLink.split('|'); linkar(i, m); }));
+  document.querySelectorAll('[data-inv-link-sel]').forEach(b => b.addEventListener('click', () => {
+    const invId = b.dataset.invLinkSel; const sel = document.getElementById('inv-link-sel-' + invId);
+    if (!sel || !sel.value) { alert('Elegí un movimiento de la lista.'); return; }
+    linkar(invId, sel.value);
+  }));
+  document.querySelectorAll('[data-inv-unlink]').forEach(b => b.addEventListener('click', async () => {
+    const [invId, movId] = b.dataset.invUnlink.split('|');
+    if (!confirm('¿Desvincular este pago del invoice? El movimiento sigue existiendo.')) return;
+    try { await mutate(d => { const inv = d.invoices.find(i => i.id === invId); if (inv) inv.movIds = inv.movIds.filter(x => x !== movId); }, 'Desvincular pago de invoice'); }
+    catch (err) { const msg = errMsg(err, 'No se pudo desvincular.'); if (msg) alert(msg); console.error(err); }
+  }));
+  document.querySelectorAll('form[data-inv-pago]').forEach(f => f.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const invId = f.dataset.invPago; const inv = invoices.find(i => i.id === invId); if (!inv) return;
+    const fd = new FormData(f); const monto = parseFloat(fd.get('monto'));
+    if (!monto || monto <= 0) { alert('Ingresá un monto válido.'); return; }
+    const btn = f.querySelector('button[type="submit"]'); btn.disabled = true; btn.textContent = 'Registrando...';
+    try {
+      const movId = newId('m');
+      await mutate(d => {
+        d.movimientos.push({ id: movId, fecha: fd.get('fecha') || null, cuenta: fd.get('cuenta'), proveedor: inv.proveedor,
+          clasificacion: inv.clasificacion, concepto: 'Pago invoice' + (inv.numero ? ' N° ' + inv.numero : '') + (inv.concepto ? ' — ' + inv.concepto : ''),
+          aporte: '', debe: 0, haber: monto, medioPago: fd.get('medioPago') || '', chequeRef: fd.get('chequeRef') || '',
+          createdAt: new Date().toISOString() });
+        const di = d.invoices.find(i => i.id === invId); if (di) di.movIds.push(movId);
+      }, `Pago invoice ${inv.numero || ''} ${inv.proveedor}: ${monto}`);
+    } catch (err) {
+      const msg = errMsg(err, 'No se pudo registrar el pago.'); if (msg) alert(msg); console.error(err);
+      btn.disabled = false; btn.textContent = 'Registrar pago';
+    }
+  }));
+}
+</script>
 <script>
 // ===================== HANDLERS =====================
 function renderAuth() {
@@ -1116,9 +1624,10 @@ function attachHandlers() {
   document.querySelectorAll('[data-del]').forEach(btn => {
     btn.addEventListener('click', async () => {
       if (!isEditor()) { openLogin(); return; }
-      if (!confirm('¿Eliminar este movimiento?')) return;
       const id = btn.dataset.del;
-      try { await mutate(d => { d.movimientos = d.movimientos.filter(m => m.id !== id); }, 'Eliminar movimiento'); }
+      const invLink = movInvoiceMap()[id];
+      if (!confirm('¿Eliminar este movimiento?' + (invLink ? `\nEstá vinculado como pago del invoice ${invLink.numero||''} de ${invLink.proveedor}; ese invoice volverá a quedar pendiente.` : ''))) return;
+      try { await mutate(d => { d.movimientos = d.movimientos.filter(m => m.id !== id); d.invoices.forEach(i => { i.movIds = (i.movIds||[]).filter(x => x !== id); }); }, 'Eliminar movimiento'); }
       catch(err) { const msg = errMsg(err, 'No se pudo eliminar.'); if (msg) alert(msg); console.error(err); }
     });
   });
@@ -1137,9 +1646,9 @@ function attachHandlers() {
         const dataUrl = await compressImage(file);
         const id = newId('f');
         const path = GH_CONFIG.fotosDir + '/' + id + '.jpg';
-        await ghPutFile(path, dataUrl.split(',')[1], 'Foto: ' + (fd.get('caption') || id));
         fotoPreview[id] = dataUrl;
-        await mutate(d => { d.fotos.push({ id, path, fecha: fd.get('fecha') || null, caption: fd.get('caption') || '', createdAt: new Date().toISOString() }); }, 'Agregar foto');
+        await mutate(d => { d.fotos.push({ id, path, fecha: fd.get('fecha') || null, caption: fd.get('caption') || '', createdAt: new Date().toISOString() }); },
+          'Agregar foto: ' + (fd.get('caption') || id), [{ path, b64: dataUrl.split(',')[1] }]);
       } catch(err) {
         const msg = errMsg(err, 'No se pudo subir la foto.'); if (msg) alert(msg);
         console.error(err);
@@ -1154,13 +1663,7 @@ function attachHandlers() {
       const fid = btn.dataset.delfoto;
       const foto = fotos.find(f => f.id === fid);
       try {
-        await mutate(d => { d.fotos = d.fotos.filter(f => f.id !== fid); }, 'Eliminar foto');
-        if (foto && foto.path) {
-          try {
-            const meta = await ghApi(repoPath(foto.path) + '?ref=' + encodeURIComponent(gh.branch));
-            await ghApi(repoPath(foto.path), { method: 'DELETE', body: JSON.stringify({ message: 'Eliminar archivo de foto', sha: meta.sha, branch: gh.branch }) });
-          } catch(_) {}
-        }
+        await mutate(d => { d.fotos = d.fotos.filter(f => f.id !== fid); }, 'Eliminar foto', foto && foto.path ? [{ path: foto.path, delete: true }] : []);
       } catch(err) { const msg = errMsg(err, 'No se pudo eliminar la foto.'); if (msg) alert(msg); console.error(err); }
     });
   });
@@ -1240,25 +1743,57 @@ async function ghPutFile(path, b64content, message, sha) {
   if (sha) body.sha = sha;
   return ghApi(repoPath(path), { method: 'PUT', body: JSON.stringify(body) });
 }
-function normalizeData(d) { return { movimientos: Array.isArray(d.movimientos) ? d.movimientos : [], fotos: Array.isArray(d.fotos) ? d.fotos : [], actualizado: d.actualizado || null }; }
+function normalizeData(d) { return { movimientos: Array.isArray(d.movimientos) ? d.movimientos : [], fotos: Array.isArray(d.fotos) ? d.fotos : [], invoices: Array.isArray(d.invoices) ? d.invoices.map(i => ({ ...i, movIds: Array.isArray(i.movIds) ? i.movIds : [] })) : [], actualizado: d.actualizado || null }; }
 function applyData(d) {
   movimientos = d.movimientos.map(m => ({ ...m }));
   fotos = d.fotos.map(f => ({ ...f, url: fotoPreview[f.id] || f.path }));
+  invoices = d.invoices.map(i => ({ ...i }));
+  if (editingInvId && !invoices.some(i => i.id === editingInvId)) editingInvId = null;
   lastUpdate = d.actualizado;
   renderAll();
 }
-async function mutate(fn, message) {
+// Guarda TODO el cambio (data.json + archivos) en UN SOLO commit de GitHub,
+// así Netlify publica una sola vez por cada acción.
+// files: [{path, b64}] para agregar/reemplazar, [{path, delete:true}] para borrar.
+async function mutate(fn, message, files = []) {
   if (!isEditor()) { openLogin(); throw Object.assign(new Error('sin acceso'), { code: 'nologin' }); }
-  for (let intento = 0; intento < 4; intento++) {
-    const { data, sha } = await ghGetData();
+  const base = `/repos/${gh.owner}/${gh.repo}/git`;
+  const blobCache = {};
+  for (const f of files) if (!f.delete) {
+    const b = await ghApi(base + '/blobs', { method: 'POST', body: JSON.stringify({ content: f.b64, encoding: 'base64' }) });
+    blobCache[f.path] = b.sha;
+  }
+  for (let intento = 0; intento < 5; intento++) {
+    const ref = await ghApi(base + '/ref/heads/' + encodeURIComponent(gh.branch) + '?t=' + Date.now());
+    const headSha = ref.object.sha;
+    const head = await ghApi(base + '/commits/' + headSha);
+    let data;
+    try {
+      const f = await ghApi(repoPath(GH_CONFIG.dataPath) + '?ref=' + headSha);
+      let text;
+      if (f.content) text = b64decodeUtf8(f.content);
+      else { const bl = await ghApi(base + '/blobs/' + f.sha); text = b64decodeUtf8(bl.content); }
+      data = normalizeData(JSON.parse(text));
+    } catch (e) { if (e.status === 404) data = normalizeData({}); else throw e; }
     fn(data);
     data.actualizado = new Date().toISOString();
+    const dataBlob = await ghApi(base + '/blobs', { method: 'POST', body: JSON.stringify({ content: b64encodeUtf8(JSON.stringify(data, null, 1)), encoding: 'base64' }) });
+    const entries = [{ path: GH_CONFIG.dataPath, mode: '100644', type: 'blob', sha: dataBlob.sha }];
+    files.forEach(f => entries.push({ path: f.path, mode: '100644', type: 'blob', sha: f.delete ? null : blobCache[f.path] }));
+    let tree;
+    try { tree = await ghApi(base + '/trees', { method: 'POST', body: JSON.stringify({ base_tree: head.tree.sha, tree: entries }) }); }
+    catch (e) {
+      // si un archivo a borrar ya no existía, se reintenta sin borrarlo
+      if (e.status !== 422 || !files.some(f => f.delete)) throw e;
+      tree = await ghApi(base + '/trees', { method: 'POST', body: JSON.stringify({ base_tree: head.tree.sha, tree: entries.filter(x => x.sha !== null) }) });
+    }
+    const commit = await ghApi(base + '/commits', { method: 'POST', body: JSON.stringify({ message: message + ' (' + gh.nombre + ')', tree: tree.sha, parents: [headSha] }) });
     try {
-      await ghPutFile(GH_CONFIG.dataPath, b64encodeUtf8(JSON.stringify(data, null, 1)), message + ' (' + gh.nombre + ')', sha);
-      applyData(data);
-      showToast('Guardado ✓ — los demás lo verán en ~1 minuto, cuando Netlify publique.');
-      return;
-    } catch (e) { if (e.status === 409 || e.status === 422) continue; throw e; }
+      await ghApi(base + '/refs/heads/' + encodeURIComponent(gh.branch), { method: 'PATCH', body: JSON.stringify({ sha: commit.sha, force: false }) });
+    } catch (e) { if (e.status === 422 || e.status === 409) continue; throw e; } // alguien guardó al mismo tiempo: se reintenta
+    applyData(data);
+    showToast('Guardado ✓ — los demás lo verán en ~1 minuto, cuando Netlify publique.');
+    return;
   }
   throw new Error('No se pudo guardar por conflicto de versiones.');
 }
