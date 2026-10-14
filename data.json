@@ -323,7 +323,27 @@
    "movIds": [],
    "createdAt": "2026-10-14T21:07:02.282Z",
    "creadoPor": "Nacho"
+  },
+  {
+   "id": "inv-mv8lqw2i-6xrya",
+   "fecha": "2026-09-29",
+   "numero": "824146",
+   "proveedor": "Xtreme Impact Windows & Doors",
+   "clasificacion": "Ventanas",
+   "concepto": "Sliding Glass Door Hardwarec",
+   "monto": 13316.8,
+   "vencimiento": null,
+   "tipo": "Cotización",
+   "dominio": "xtremeimpactfl.com",
+   "archivo": {
+    "path": "invoices/inv-mv8lqw2i-6xrya-mv8lqw2t.pdf",
+    "nombre": "2013 SW 2ND TER CAPE CORAL, FLORIDA 33914 YOSVANI.pdf",
+    "tipo": "application/pdf"
+   },
+   "movIds": [],
+   "createdAt": "2026-10-14T21:08:41.990Z",
+   "creadoPor": "Nacho"
   }
  ],
- "actualizado": "2026-10-14T21:07:02.282Z"
+ "actualizado": "2026-10-14T21:08:41.990Z"
 }
