@@ -285,6 +285,20 @@
    "medioPago": "",
    "proveedor": "Xtreme Impact Windows & Doors",
    "id": "p4nvbc5kr2bcc0zmzv3l"
+  },
+  {
+   "fecha": "2026-10-15",
+   "cuenta": "Otras",
+   "proveedor": "Ivanko Contador",
+   "clasificacion": "Impuestos",
+   "concepto": "Devolucion pago extra",
+   "aporte": "",
+   "debe": 1000,
+   "haber": 0,
+   "medioPago": "",
+   "chequeRef": "",
+   "id": "m-mv9u2ktg-pb0dk",
+   "createdAt": "2026-10-15T17:49:26.884Z"
   }
  ],
  "fotos": [
@@ -347,5 +361,5 @@
    "creadoPor": "Nacho"
   }
  ],
- "actualizado": "2026-10-14T21:10:50.217Z"
+ "actualizado": "2026-10-15T17:49:28.807Z"
 }
