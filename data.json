@@ -299,6 +299,20 @@
    "chequeRef": "",
    "id": "m-mv9u2ktg-pb0dk",
    "createdAt": "2026-10-15T17:49:26.884Z"
+  },
+  {
+   "id": "m-mvb1v5f5-wopws",
+   "fecha": "2026-10-15",
+   "cuenta": "Otras",
+   "proveedor": "Central Florida Truss",
+   "clasificacion": "Trozas",
+   "concepto": "Pago invoice N° JDS3185 — ROOF TRUSSES PER LAYOUT # JDS3185",
+   "aporte": "",
+   "debe": 0,
+   "haber": 1000,
+   "medioPago": "Pago Yosvani con devolucion Agus contador",
+   "chequeRef": "",
+   "createdAt": "2026-10-16T14:15:25.125Z"
   }
  ],
  "fotos": [
@@ -334,7 +348,9 @@
     "nombre": "JDS3185-Proposal.PDF",
     "tipo": "application/pdf"
    },
-   "movIds": [],
+   "movIds": [
+    "m-mvb1v5f5-wopws"
+   ],
    "createdAt": "2026-10-14T21:07:02.282Z",
    "creadoPor": "Nacho"
   },
@@ -361,5 +377,5 @@
    "creadoPor": "Nacho"
   }
  ],
- "actualizado": "2026-10-15T17:49:28.807Z"
+ "actualizado": "2026-10-16T14:15:25.125Z"
 }
