@@ -375,7 +375,26 @@
    ],
    "createdAt": "2026-10-14T21:08:41.990Z",
    "creadoPor": "Nacho"
+  },
+  {
+   "id": "inv-mvzljk4f-lklq7",
+   "fecha": "2026-10-30",
+   "numero": "1065",
+   "proveedor": "A&M Elite services, Inc",
+   "clasificacion": "Gestoria-Habilitacion-inspecciones-planos",
+   "concepto": "Energy calculation",
+   "monto": 150,
+   "vencimiento": "2026-10-30",
+   "tipo": "Invoice",
+   "archivo": {
+    "path": "invoices/inv-mvzljk4f-lklq7-mvzljk4u.pdf",
+    "nombre": "INVOICE_1065_from_A&M Elite Services, Inc.pdf",
+    "tipo": "application/pdf"
+   },
+   "movIds": [],
+   "createdAt": "2026-11-02T18:32:45.950Z",
+   "creadoPor": "Nacho"
   }
  ],
- "actualizado": "2026-10-16T14:15:25.125Z"
+ "actualizado": "2026-11-02T18:32:45.954Z"
 }
