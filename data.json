@@ -313,6 +313,20 @@
    "medioPago": "Pago Yosvani con devolucion Agus contador",
    "chequeRef": "",
    "createdAt": "2026-10-16T14:15:25.125Z"
+  },
+  {
+   "id": "m-mvzwjo9m-xkhl6",
+   "fecha": "2026-11-02",
+   "cuenta": "Mercury",
+   "proveedor": "A&M Elite services, Inc",
+   "clasificacion": "Gestoria-Habilitacion-inspecciones-planos",
+   "concepto": "Pago invoice N° 1065 — Energy calculation",
+   "aporte": "",
+   "debe": 0,
+   "haber": 150,
+   "medioPago": "intuit payment",
+   "chequeRef": "",
+   "createdAt": "2026-11-02T23:40:46.032Z"
   }
  ],
  "fotos": [
@@ -391,10 +405,12 @@
     "nombre": "INVOICE_1065_from_A&M Elite Services, Inc.pdf",
     "tipo": "application/pdf"
    },
-   "movIds": [],
+   "movIds": [
+    "m-mvzwjo9m-xkhl6"
+   ],
    "createdAt": "2026-11-02T18:32:45.950Z",
    "creadoPor": "Nacho"
   }
  ],
- "actualizado": "2026-11-02T18:32:45.954Z"
+ "actualizado": "2026-11-02T23:40:46.032Z"
 }
