@@ -327,6 +327,36 @@
    "medioPago": "intuit payment",
    "chequeRef": "",
    "createdAt": "2026-11-02T23:40:46.032Z"
+  },
+  {
+   "id": "m-mw59gcfo-yqkff",
+   "fecha": "2026-11-06",
+   "cuenta": "Facebank",
+   "proveedor": "",
+   "clasificacion": "Transferencia entre cuentas",
+   "concepto": "Transferencia a Mercury",
+   "aporte": "",
+   "debe": 0,
+   "haber": 100000,
+   "medioPago": "",
+   "chequeRef": "",
+   "transferId": "tr-1793986853018-a98q0",
+   "createdAt": "2026-11-06T17:40:53.018Z"
+  },
+  {
+   "id": "m-mw59gcfo-cr9bs",
+   "fecha": "2026-11-06",
+   "cuenta": "Mercury",
+   "proveedor": "",
+   "clasificacion": "Transferencia entre cuentas",
+   "concepto": "Transferencia desde Facebank",
+   "aporte": "",
+   "debe": 100000,
+   "haber": 0,
+   "medioPago": "",
+   "chequeRef": "",
+   "transferId": "tr-1793986853018-a98q0",
+   "createdAt": "2026-11-06T17:40:53.018Z"
   }
  ],
  "fotos": [
@@ -412,5 +442,5 @@
    "creadoPor": "Nacho"
   }
  ],
- "actualizado": "2026-11-02T23:40:46.032Z"
+ "actualizado": "2026-11-06T17:40:54.900Z"
 }
