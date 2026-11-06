@@ -440,7 +440,26 @@
    ],
    "createdAt": "2026-11-02T18:32:45.950Z",
    "creadoPor": "Nacho"
+  },
+  {
+   "id": "inv-mw5b58kx-m9kvl",
+   "fecha": "2026-09-11",
+   "numero": "",
+   "proveedor": "Maby Arquitecta",
+   "clasificacion": "Gestoria-Habilitacion-inspecciones-planos",
+   "concepto": "Honorarios Arquitecta",
+   "monto": 2894,
+   "vencimiento": null,
+   "tipo": "Cotización",
+   "archivo": {
+    "path": "invoices/inv-mw5b58kx-m9kvl-mw5b58l9.pdf",
+    "nombre": "2013 SW Proposal-1.pdf",
+    "tipo": "application/pdf"
+   },
+   "movIds": [],
+   "createdAt": "2026-11-06T18:28:18.984Z",
+   "creadoPor": "Nacho"
   }
  ],
- "actualizado": "2026-11-06T17:40:54.900Z"
+ "actualizado": "2026-11-06T18:28:18.985Z"
 }
