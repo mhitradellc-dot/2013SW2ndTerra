@@ -357,6 +357,20 @@
    "chequeRef": "",
    "transferId": "tr-1793986853018-a98q0",
    "createdAt": "2026-11-06T17:40:53.018Z"
+  },
+  {
+   "id": "m-mw5cs6qt-4luve",
+   "fecha": "2026-11-06",
+   "cuenta": "Mercury",
+   "proveedor": "Maby Arquitecta",
+   "clasificacion": "Gestoria-Habilitacion-inspecciones-planos",
+   "concepto": "Pago invoice — Honorarios Arquitecta",
+   "aporte": "",
+   "debe": 0,
+   "haber": 1447,
+   "medioPago": "ACH",
+   "chequeRef": "",
+   "createdAt": "2026-11-06T19:14:07.912Z"
   }
  ],
  "fotos": [
@@ -457,11 +471,12 @@
     "tipo": "application/pdf"
    },
    "movIds": [
-    "wffojvf05gwkqcnkes7p"
+    "wffojvf05gwkqcnkes7p",
+    "m-mw5cs6qt-4luve"
    ],
    "createdAt": "2026-11-06T18:28:18.984Z",
    "creadoPor": "Nacho"
   }
  ],
- "actualizado": "2026-11-06T18:31:21.670Z"
+ "actualizado": "2026-11-06T19:14:07.912Z"
 }
