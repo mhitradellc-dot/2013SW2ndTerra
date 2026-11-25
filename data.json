@@ -371,6 +371,20 @@
    "medioPago": "ACH",
    "chequeRef": "",
    "createdAt": "2026-11-06T19:14:07.912Z"
+  },
+  {
+   "fecha": "2026-11-24",
+   "cuenta": "Mercury",
+   "proveedor": "JS Construction",
+   "clasificacion": "Contratista",
+   "concepto": "Fee inicial",
+   "aporte": "",
+   "debe": 0,
+   "haber": 4990,
+   "medioPago": "Transferencia",
+   "chequeRef": "",
+   "id": "m-mwwe9uqv-cdqhx",
+   "createdAt": "2026-11-25T17:25:36.871Z"
   }
  ],
  "fotos": [
@@ -497,5 +511,5 @@
    "creadoPor": "Nacho"
   }
  ],
- "actualizado": "2026-11-25T15:41:40.000Z"
+ "actualizado": "2026-11-25T17:25:38.846Z"
 }
