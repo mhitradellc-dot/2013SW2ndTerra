@@ -385,6 +385,20 @@
    "chequeRef": "",
    "id": "m-mwwe9uqv-cdqhx",
    "createdAt": "2026-11-25T17:25:36.871Z"
+  },
+  {
+   "id": "m-mwwebn09-jf6xn",
+   "fecha": "2026-11-24",
+   "cuenta": "Mercury",
+   "proveedor": "JS CORAL CONSTRUCTION",
+   "clasificacion": "Contratista",
+   "concepto": "Pago invoice — Contrato construccion",
+   "aporte": "",
+   "debe": 0,
+   "haber": 4990,
+   "medioPago": "Transferencia",
+   "chequeRef": "",
+   "createdAt": "2026-11-25T17:27:02.172Z"
   }
  ],
  "fotos": [
@@ -506,10 +520,12 @@
     "nombre": "CONTRATO 2013 SW 2ND TER.pdf",
     "tipo": "application/pdf"
    },
-   "movIds": [],
+   "movIds": [
+    "m-mwwebn09-jf6xn"
+   ],
    "createdAt": "2026-11-25T15:40:51.237Z",
    "creadoPor": "Nacho"
   }
  ],
- "actualizado": "2026-11-25T17:25:38.846Z"
+ "actualizado": "2026-11-25T17:27:02.172Z"
 }
