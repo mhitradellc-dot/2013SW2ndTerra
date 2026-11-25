@@ -482,10 +482,10 @@
    "fecha": "2026-11-01",
    "numero": "",
    "proveedor": "JS CORAL CONSTRUCTION",
-   "clasificacion": "Gestoria-Habilitacion-inspecciones-planos",
-   "concepto": "$ at Plans Submitted",
-   "monto": 0,
-   "vencimiento": null,
+   "clasificacion": "Contratista",
+   "concepto": "Contrato construccion",
+   "monto": 40000,
+   "vencimiento": "2027-04-20",
    "tipo": "Invoice",
    "archivo": {
     "path": "invoices/inv-mwwaj1uu-l8fg1-mwwaj1v2.pdf",
@@ -497,5 +497,5 @@
    "creadoPor": "Nacho"
   }
  ],
- "actualizado": "2026-11-25T15:40:51.239Z"
+ "actualizado": "2026-11-25T15:41:40.000Z"
 }
