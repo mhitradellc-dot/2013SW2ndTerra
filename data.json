@@ -399,6 +399,20 @@
    "medioPago": "Transferencia",
    "chequeRef": "",
    "createdAt": "2026-11-25T17:27:02.172Z"
+  },
+  {
+   "id": "m-mwwech86-cwl7u",
+   "fecha": "2026-11-19",
+   "cuenta": "Mercury",
+   "proveedor": "JS CORAL CONSTRUCTION",
+   "clasificacion": "Contratista",
+   "concepto": "Pago invoice — Contrato construccion",
+   "aporte": "",
+   "debe": 0,
+   "haber": 10,
+   "medioPago": "transferencia",
+   "chequeRef": "",
+   "createdAt": "2026-11-25T17:27:41.378Z"
   }
  ],
  "fotos": [
@@ -521,11 +535,12 @@
     "tipo": "application/pdf"
    },
    "movIds": [
-    "m-mwwebn09-jf6xn"
+    "m-mwwebn09-jf6xn",
+    "m-mwwech86-cwl7u"
    ],
    "createdAt": "2026-11-25T15:40:51.237Z",
    "creadoPor": "Nacho"
   }
  ],
- "actualizado": "2026-11-25T17:27:02.172Z"
+ "actualizado": "2026-11-25T17:27:41.378Z"
 }
