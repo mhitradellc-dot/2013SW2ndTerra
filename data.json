@@ -476,7 +476,26 @@
    ],
    "createdAt": "2026-11-06T18:28:18.984Z",
    "creadoPor": "Nacho"
+  },
+  {
+   "id": "inv-mwwaj1uu-l8fg1",
+   "fecha": "2026-11-01",
+   "numero": "",
+   "proveedor": "JS CORAL CONSTRUCTION",
+   "clasificacion": "Gestoria-Habilitacion-inspecciones-planos",
+   "concepto": "$ at Plans Submitted",
+   "monto": 0,
+   "vencimiento": null,
+   "tipo": "Invoice",
+   "archivo": {
+    "path": "invoices/inv-mwwaj1uu-l8fg1-mwwaj1v2.pdf",
+    "nombre": "CONTRATO 2013 SW 2ND TER.pdf",
+    "tipo": "application/pdf"
+   },
+   "movIds": [],
+   "createdAt": "2026-11-25T15:40:51.237Z",
+   "creadoPor": "Nacho"
   }
  ],
- "actualizado": "2026-11-06T19:14:07.912Z"
+ "actualizado": "2026-11-25T15:40:51.239Z"
 }
